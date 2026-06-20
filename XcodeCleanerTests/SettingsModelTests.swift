@@ -44,4 +44,31 @@ final class SettingsModelTests: XCTestCase {
         XCTAssertEqual(reread.scheduleHour, 5)
         XCTAssertEqual(reread.scheduleMinute, 30)
     }
+
+    func testLastScheduledCleanPersistsAcrossInstances() {
+        let name = "xclean.test.\(UUID().uuidString)"
+        let suite = UserDefaults(suiteName: name)!
+        defer { suite.removePersistentDomain(forName: name) }
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        SettingsModel(userDefaults: suite).lastScheduledClean = date
+        let reloaded = SettingsModel(userDefaults: suite).lastScheduledClean
+        XCTAssertEqual(reloaded?.timeIntervalSince1970 ?? 0, date.timeIntervalSince1970, accuracy: 1)
+    }
+
+    func testLastRunTextNilWhenNeverRun() {
+        let name = "xclean.test.\(UUID().uuidString)"
+        let suite = UserDefaults(suiteName: name)!
+        defer { suite.removePersistentDomain(forName: name) }
+        XCTAssertNil(SettingsModel(userDefaults: suite).lastRunText)
+    }
+
+    func testLastRunTextReflectsMutation() {
+        let name = "xclean.test.\(UUID().uuidString)"
+        let suite = UserDefaults(suiteName: name)!
+        defer { suite.removePersistentDomain(forName: name) }
+        let s = SettingsModel(userDefaults: suite)
+        XCTAssertNil(s.lastRunText)
+        s.lastScheduledClean = Date(timeIntervalSince1970: 1_700_000_000)
+        XCTAssertNotNil(s.lastRunText)
+    }
 }

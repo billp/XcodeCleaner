@@ -96,6 +96,30 @@ final class SettingsModel {
         }
     }
 
+    var lastScheduledClean: Date? {
+        get {
+            access(keyPath: \.lastScheduledClean)
+            return defaults.object(forKey: "xclean.lastScheduledClean") as? Date
+        }
+        set {
+            withMutation(keyPath: \.lastScheduledClean) {
+                defaults.set(newValue, forKey: "xclean.lastScheduledClean")
+            }
+        }
+    }
+
+    private static let runFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM d 'at' h:mm a"
+        return f
+    }()
+
+    var lastRunText: String? {
+        access(keyPath: \.lastScheduledClean)
+        guard let date = lastScheduledClean else { return nil }
+        return Self.runFormatter.string(from: date)
+    }
+
     var nextRunText: String? {
         access(keyPath: \.nextRunText)
         guard schedulingEnabled else { return nil }
@@ -107,8 +131,6 @@ final class SettingsModel {
             matchingPolicy: .nextTime
         )
         guard let next else { return nil }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE, MMM d 'at' h:mm a"
-        return formatter.string(from: next)
+        return Self.runFormatter.string(from: next)
     }
 }

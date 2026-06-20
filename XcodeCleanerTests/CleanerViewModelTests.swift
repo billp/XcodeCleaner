@@ -66,4 +66,16 @@ final class CleanerViewModelTests: XCTestCase {
         XCTAssertFalse(vm.targets.contains { $0.name == "XcodeBuildMCP workspaces" })
         XCTAssertEqual(vm.targets.first?.name, "Xcode DerivedData")
     }
+
+    func testRunScheduledCleanReclaimsAndClearsFlag() async {
+        let scanner = FakeScanner(results: [.success(1000), .success(0)]) // before, after
+        let vm = CleanerViewModel(scanner: scanner,
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: false))
+        let name = vm.targets.first!.name
+        let result = await vm.runScheduledClean(named: [name])
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result.reclaimed, 1000)
+        XCTAssertFalse(vm.isScheduledCleaning)
+    }
 }

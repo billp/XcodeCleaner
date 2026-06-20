@@ -6,16 +6,19 @@ final class Scheduler {
     private let vm: CleanerViewModel
     private let settings: SettingsModel
     private let runner: CommandRunning
+    private let notifier: Notifying
     private var timer: Timer?
 
     internal(set) var lastFired: Date?
     internal(set) var pendingFire: Date?
     internal(set) var originalFire: Date?
 
-    init(vm: CleanerViewModel, settings: SettingsModel, runner: CommandRunning = Shell()) {
+    init(vm: CleanerViewModel, settings: SettingsModel,
+         runner: CommandRunning = Shell(), notifier: Notifying = UserNotifier()) {
         self.vm = vm
         self.settings = settings
         self.runner = runner
+        self.notifier = notifier
     }
 
     func start() {
@@ -70,7 +73,9 @@ final class Scheduler {
             return
         }
 
-        vm.cleanTargets(named: settings.enabledTargetNames)
+        let result = await vm.runScheduledClean(named: settings.enabledTargetNames)
+        settings.lastScheduledClean = now
+        await notifier.notifyCleanFinished(targetCount: result.count, reclaimedBytes: result.reclaimed)
         lastFired = now
         pendingFire = nil
         originalFire = nil

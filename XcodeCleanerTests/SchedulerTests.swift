@@ -66,7 +66,7 @@ final class SchedulerTests: XCTestCase {
                                   cleaner: cleaner,
                                   availability: FakeAvailability(existsResult: true))
         let runner = FakeCommandRunner(status: 0, stdout: Data("bash\ngoogle-chrome\n".utf8))
-        let scheduler = Scheduler(vm: vm, settings: settings, runner: runner)
+        let scheduler = Scheduler(vm: vm, settings: settings, runner: runner, notifier: FakeNotifier())
         let fire = makeFireDate()
         await scheduler.tick(now: fire)
         await waitUntil { cleaner.cleanedNames.count == 1 }
@@ -94,6 +94,24 @@ final class SchedulerTests: XCTestCase {
         XCTAssertTrue(cleaner.cleanedNames.isEmpty)
         XCTAssertNil(scheduler.pendingFire)
         XCTAssertNil(scheduler.originalFire)
+    }
+
+    func testTickRecordsLastCleanAndNotifies() async {
+        let settings = SettingsModel(userDefaults: makeSuite())
+        settings.schedulingEnabled = true
+        settings.enabledTargetNames = ["Xcode DerivedData"]
+        let vm = CleanerViewModel(scanner: FakeScanner(results: [.success(1000), .success(0)]),
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: false))
+        let notifier = FakeNotifier()
+        let scheduler = Scheduler(vm: vm, settings: settings,
+                                  runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)),
+                                  notifier: notifier)
+        let fire = makeFireDate()
+        await scheduler.tick(now: fire)
+        XCTAssertEqual(settings.lastScheduledClean, fire)
+        XCTAssertEqual(notifier.finishedCalls.count, 1)
+        XCTAssertEqual(notifier.finishedCalls.first?.count, 1)
     }
 
     func testTickPostponesThenFiresWhenBuildFinishes() async {
