@@ -7,12 +7,18 @@ enum SimctlParsing {
         struct Runtime: Decodable { let sizeBytes: Int64?; let lastUsedAt: String? }
         let map = try JSONDecoder().decode([String: Runtime].self, from: json)
         let cutoff = now.addingTimeInterval(-Double(days) * 86_400)
-        let fmt = ISO8601DateFormatter()
+        let fmtBasic = ISO8601DateFormatter()
+        fmtBasic.formatOptions = [.withInternetDateTime]
+        let fmtFractional = ISO8601DateFormatter()
+        fmtFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         var total: Int64 = 0
         for rt in map.values {
             guard let size = rt.sizeBytes else { continue }
-            if let s = rt.lastUsedAt, let used = fmt.date(from: s), used >= cutoff {
-                continue // recently used → keep
+            if let s = rt.lastUsedAt {
+                let used = fmtBasic.date(from: s) ?? fmtFractional.date(from: s)
+                if let used, used >= cutoff {
+                    continue // recently used → keep
+                }
             }
             total += size
         }

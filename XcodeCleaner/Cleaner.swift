@@ -7,10 +7,18 @@ struct Cleaner {
             case .directory(let path):
                 try removeDirectoryContents((path as NSString).expandingTildeInPath)
             case .unavailableSimulators:
-                _ = try await Shell.run("/usr/bin/xcrun", ["simctl", "delete", "unavailable"])
+                let (status, _, errData) = try await Shell.run("/usr/bin/xcrun", ["simctl", "delete", "unavailable"])
+                if status != 0 {
+                    let msg = String(data: errData, encoding: .utf8) ?? ""
+                    throw ScanError.process(msg.isEmpty ? "exit \(status)" : msg)
+                }
             case .unusedRuntimes(let days):
-                _ = try await Shell.run("/usr/bin/xcrun",
+                let (status, _, errData) = try await Shell.run("/usr/bin/xcrun",
                     ["simctl", "runtime", "delete", "--notUsedSinceDays", String(days)])
+                if status != 0 {
+                    let msg = String(data: errData, encoding: .utf8) ?? ""
+                    throw ScanError.process(msg.isEmpty ? "exit \(status)" : msg)
+                }
             }
             return .success(())
         } catch { return .failure(error) }
