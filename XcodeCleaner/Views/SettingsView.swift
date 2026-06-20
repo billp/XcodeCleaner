@@ -12,11 +12,11 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             GeneralTab(settings: settings)
-                .tabItem { Label("General", systemImage: "gear") }
+                .tabItem { Label("General", systemImage: "gearshape") }
             ScheduleTab(vm: vm, settings: settings)
                 .tabItem { Label("Schedule", systemImage: "clock") }
         }
-        .frame(width: 420)
+        .frame(width: 480, height: 380)
     }
 }
 
@@ -25,26 +25,31 @@ private struct GeneralTab: View {
 
     var body: some View {
         Form {
-            Toggle("Launch at login", isOn: $settings.launchAtLogin)
-            if settings.schedulingEnabled {
-                Section("Next scheduled clean") {
-                    Text(settings.nextRunText ?? "—")
-                        .foregroundStyle(.secondary)
-                    if settings.enabledTargetNames.isEmpty {
-                        Text("No targets selected.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    } else {
-                        Text(settings.enabledTargetNames.sorted().joined(separator: ", "))
-                            .font(.caption).foregroundStyle(.secondary)
+            Section {
+                Toggle("Launch at login", isOn: $settings.launchAtLogin)
+            } footer: {
+                Text("Start Xcode Cleaner automatically when you log in.")
+            }
+
+            Section("Scheduled cleaning") {
+                if settings.schedulingEnabled {
+                    LabeledContent("Next run", value: settings.nextRunText ?? "—")
+                    LabeledContent("Targets") {
+                        Text(settings.enabledTargetNames.isEmpty
+                             ? "None selected"
+                             : settings.enabledTargetNames.sorted().joined(separator: ", "))
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
                     }
+                } else {
+                    LabeledContent("Status", value: "Disabled")
+                    Text("Turn on scheduling in the Schedule tab.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-            } else {
-                Text("Scheduling disabled")
-                    .font(.caption).foregroundStyle(.secondary)
             }
         }
-        .padding(20)
-        .frame(minWidth: 380)
+        .formStyle(.grouped)
     }
 }
 
@@ -52,7 +57,7 @@ private struct ScheduleTab: View {
     let vm: CleanerViewModel
     @Bindable var settings: SettingsModel
 
-    private let weekdaySymbols = Calendar.current.shortWeekdaySymbols
+    private let weekdaySymbols = Calendar.current.weekdaySymbols
 
     private var hourMinuteBinding: Binding<Date> {
         Binding(
@@ -82,9 +87,13 @@ private struct ScheduleTab: View {
 
     var body: some View {
         Form {
-            Toggle("Enable scheduled cleaning", isOn: $settings.schedulingEnabled)
-
             Section {
+                Toggle("Enable scheduled cleaning", isOn: $settings.schedulingEnabled)
+            } footer: {
+                Text("Automatically clean the selected caches on a weekly schedule.")
+            }
+
+            Section("When") {
                 Picker("Day", selection: $settings.scheduleWeekday) {
                     ForEach(weekdaySymbols.indices, id: \.self) { i in
                         Text(weekdaySymbols[i]).tag(i + 1)  // 1=Sunday…7=Saturday
@@ -97,11 +106,10 @@ private struct ScheduleTab: View {
             Section("Targets to auto-clean") {
                 ForEach(vm.targets) { target in
                     Toggle(target.name, isOn: bindingFor(target.name))
-                        .disabled(!settings.schedulingEnabled)
                 }
             }
+            .disabled(!settings.schedulingEnabled)
         }
-        .padding(20)
-        .frame(minWidth: 380)
+        .formStyle(.grouped)
     }
 }
