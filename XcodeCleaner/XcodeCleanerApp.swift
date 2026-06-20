@@ -4,8 +4,7 @@ import SwiftUI
 struct XcodeCleanerApp: App {
     var body: some Scene {
         MenuBarExtra("Xcode Cleaner", systemImage: "trash") {
-            Text("Xcode Cleaner")
-                .padding()
+            MenuBarView()
         }
         .menuBarExtraStyle(.window)
     }
