@@ -63,6 +63,12 @@ final class CleanerViewModel {
         }
     }
 
+    func cleanTargets(named names: Set<String>) {
+        for target in targets where names.contains(target.name) {
+            clean(target)
+        }
+    }
+
     var totalText: String {
         let total = targets.compactMap(\.sizeBytes).reduce(0, +)
         return ByteCountFormatter.string(fromByteCount: total, countStyle: .file)
