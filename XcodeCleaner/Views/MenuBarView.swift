@@ -2,7 +2,6 @@ import SwiftUI
 
 struct MenuBarView: View {
     let vm: CleanerViewModel
-    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -19,10 +18,10 @@ struct MenuBarView: View {
                 TargetRow(target: target) { vm.clean(target) }
             }
             Divider()
-            Button("Settings…") { openSettings() }
-                .buttonStyle(.borderless)
+            Button("Settings…") {
+                NSApplication.shared.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            }
             Button("Quit") { NSApplication.shared.terminate(nil) }
-                .buttonStyle(.borderless)
         }
         .padding(12)
         .frame(width: 320)
