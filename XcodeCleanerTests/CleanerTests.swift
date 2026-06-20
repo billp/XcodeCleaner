@@ -14,4 +14,31 @@ final class CleanerTests: XCTestCase {
         XCTAssertTrue(fm.fileExists(atPath: dir.path))
         XCTAssertEqual(try fm.contentsOfDirectory(atPath: dir.path), [])
     }
+
+    func testCleanerSurfacesNonZeroStatusForSimulators() async {
+        let runner = FakeCommandRunner(status: 2, stderr: Data("nope".utf8))
+        let cleaner = Cleaner(runner: runner)
+        let target = CleanupTarget(name: "sim", kind: .unavailableSimulators)
+        if case .success = await cleaner.clean(target) {
+            XCTFail("expected failure on non-zero exit status")
+        }
+    }
+
+    func testCleanerPassesRuntimeDeleteArgs() async {
+        let runner = FakeCommandRunner(status: 0)
+        let cleaner = Cleaner(runner: runner)
+        let target = CleanupTarget(name: "rt", kind: .unusedRuntimes(days: 30))
+        _ = await cleaner.clean(target)
+        XCTAssertEqual(runner.calls.first?.args,
+                       ["simctl", "runtime", "delete", "--notUsedSinceDays", "30"])
+    }
+
+    func testScannerSurfacesNonZeroStatusForRuntimes() async {
+        let runner = FakeCommandRunner(status: 1, stderr: Data("boom".utf8))
+        let scanner = DiskScanner(runner: runner)
+        let target = CleanupTarget(name: "rt", kind: .unusedRuntimes(days: 30))
+        if case .success = await scanner.size(of: target) {
+            XCTFail("expected failure on non-zero exit status")
+        }
+    }
 }
