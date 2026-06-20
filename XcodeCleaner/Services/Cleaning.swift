@@ -1,6 +1,10 @@
 import Foundation
 
-struct Cleaner {
+protocol Cleaning: Sendable {
+    func clean(_ target: CleanupTarget) async -> Result<Void, Error>
+}
+
+struct Cleaner: Cleaning {
     let runner: CommandRunning
 
     init(runner: CommandRunning = Shell()) {

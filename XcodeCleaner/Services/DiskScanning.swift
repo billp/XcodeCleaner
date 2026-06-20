@@ -2,7 +2,11 @@ import Foundation
 
 private func decode(_ data: Data) -> String { String(data: data, encoding: .utf8) ?? "" }
 
-struct DiskScanner {
+protocol DiskScanning: Sendable {
+    func size(of target: CleanupTarget) async -> Result<Int64, Error>
+}
+
+struct DiskScanner: DiskScanning {
     let runner: CommandRunning
 
     init(runner: CommandRunning = Shell()) {
