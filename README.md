@@ -1,6 +1,6 @@
 # Xcode Cleaner
 
-A macOS menu bar app that shows the disk usage of Xcode-related caches and lets you reclaim space per-target. A trash icon sits in the menu bar; clicking it lists each cache with its current size and an individual **Clean** button that shows live progress.
+A macOS menu bar app (sparkles icon) that shows the disk usage of Xcode-related caches and lets you reclaim space per-target. Click the icon to list each cache with its current size and an individual **Clean** button. A Settings window adds launch-at-login and weekly scheduled auto-clean with per-target checkboxes.
 
 ## Targets cleaned
 
@@ -20,11 +20,22 @@ A macOS menu bar app that shows the disk usage of Xcode-related caches and lets 
 MVVM with protocol-injected services:
 
 - **Models** (`CleanupTarget`, `CleanupKind`, `TargetState`) — what to clean and per-row state.
-- **Services** — `CommandRunning` (`Shell`) runs processes; `DiskScanning` (`DiskScanner`) computes sizes; `Cleaning` (`Cleaner`) deletes; `SimctlParsing` parses `simctl` JSON. Each service is a protocol with a concrete impl and a test fake.
+- **Services** — `CommandRunning` (`Shell`) runs processes; `DiskScanning` (`DiskScanner`) computes sizes; `Cleaning` (`Cleaner`) deletes; `SimctlParsing` parses `simctl` JSON; `AvailabilityChecking` (`FileManagerAvailability`) gates the XcodeBuildMCP row; `Scheduling` provides pure time-matching and build-process detection functions. Each service is a protocol with a concrete impl and a test fake.
 - **ViewModel** (`CleanerViewModel`) — `@MainActor @Observable`; owns the targets and orchestrates scan/clean. Depends on the service protocols (real defaults), so it is unit-tested with fakes.
-- **Views** (`MenuBarView`, `TargetRow`) — the menu bar dropdown.
+- **SettingsModel** — `@MainActor @Observable`; wraps `UserDefaults` for persistent settings (launch-at-login, scheduling, per-target checkboxes) and `SMAppService` for login-item registration.
+- **Scheduler** — `@MainActor @Observable`; owns a 60s `Timer` and orchestrates weekly scheduled cleaning with a build-process safety guard.
+- **Views** (`MenuBarView`, `TargetRow`, `SettingsView`) — the menu bar dropdown and the macOS Settings window.
 
 The app is an agent (`LSUIElement`, no Dock icon) with the App Sandbox disabled (it needs access to `~/Library/Developer` and `xcrun`).
+
+## Settings
+
+Open **Settings…** from the menu bar dropdown (macOS Settings window, two tabs):
+
+- **General** — `Launch at login` toggle (uses `SMAppService`; the app must be running for scheduled cleans to fire, so this is recommended if you enable scheduling). Shows the next scheduled run and selected targets.
+- **Schedule** — `Enable scheduled cleaning` toggle, a day-of-week picker, a time picker, and a per-target checklist (each cache row has its own checkbox). At the configured slot each week, XcodeCleaner cleans the checked targets.
+
+**Build-process guard:** before firing a scheduled clean, XcodeCleaner checks for running build processes (`xcodebuild`, `swift`, `swiftc`, `clang`, `clang++`, `ld`, `swift-frontend`). If any are running, the clean is postponed by one hour, repeating hourly up to 24 hours from the original slot — after which it gives up until next week's slot. Cleans never interrupt an in-progress build.
 
 ## Build / run / test
 
