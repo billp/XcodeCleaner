@@ -6,22 +6,29 @@ final class CleanerViewModel {
     let targets: [CleanupTarget]
     private let scanner: DiskScanning
     private let cleaner: Cleaning
+    private let availability: AvailabilityChecking
 
-    init(scanner: DiskScanning = DiskScanner(), cleaner: Cleaning = Cleaner()) {
+    init(scanner: DiskScanning = DiskScanner(),
+         cleaner: Cleaning = Cleaner(),
+         availability: AvailabilityChecking = FileManagerAvailability()) {
         self.scanner = scanner
         self.cleaner = cleaner
-        targets = [
-            CleanupTarget(name: "XcodeBuildMCP workspaces",
-                          kind: .directory(path: "~/Library/Developer/XcodeBuildMCP/workspaces")),
-            CleanupTarget(name: "Xcode DerivedData",
-                          kind: .directory(path: "~/Library/Developer/Xcode/DerivedData")),
-            CleanupTarget(name: "SwiftPM cache",
-                          kind: .directory(path: "~/Library/Caches/org.swift.swiftpm")),
-            CleanupTarget(name: "iOS DeviceSupport",
-                          kind: .directory(path: "~/Library/Developer/Xcode/iOS DeviceSupport")),
-            CleanupTarget(name: "Unused simulators", kind: .unavailableSimulators),
-            CleanupTarget(name: "Unused simulator runtimes", kind: .unusedRuntimes(days: 30)),
-        ]
+        self.availability = availability
+        var built: [CleanupTarget] = []
+        let xbmcpPath = "~/Library/Developer/XcodeBuildMCP/workspaces"
+        if availability.exists((xbmcpPath as NSString).expandingTildeInPath) {
+            built.append(CleanupTarget(name: "XcodeBuildMCP workspaces",
+                                       kind: .directory(path: xbmcpPath)))
+        }
+        built.append(CleanupTarget(name: "Xcode DerivedData",
+                                   kind: .directory(path: "~/Library/Developer/Xcode/DerivedData")))
+        built.append(CleanupTarget(name: "SwiftPM cache",
+                                   kind: .directory(path: "~/Library/Caches/org.swift.swiftpm")))
+        built.append(CleanupTarget(name: "iOS DeviceSupport",
+                                   kind: .directory(path: "~/Library/Developer/Xcode/iOS DeviceSupport")))
+        built.append(CleanupTarget(name: "Unused simulators", kind: .unavailableSimulators))
+        built.append(CleanupTarget(name: "Unused simulator runtimes", kind: .unusedRuntimes(days: 30)))
+        targets = built
     }
 
     func scanAll() {
