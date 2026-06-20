@@ -70,7 +70,7 @@ final class Scheduler {
             return
         }
 
-        vm.cleanTargets(named: settings.enabledTargetNames)
+        _ = await vm.runScheduledClean(named: settings.enabledTargetNames)
         lastFired = now
         pendingFire = nil
         originalFire = nil

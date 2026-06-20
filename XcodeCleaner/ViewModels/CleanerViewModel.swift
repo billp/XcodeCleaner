@@ -8,6 +8,8 @@ final class CleanerViewModel {
     private let cleaner: Cleaning
     private let availability: AvailabilityChecking
 
+    private(set) var isScheduledCleaning = false
+
     init(scanner: DiskScanning = DiskScanner(),
          cleaner: Cleaning = Cleaner(),
          availability: AvailabilityChecking = FileManagerAvailability()) {
@@ -47,26 +49,47 @@ final class CleanerViewModel {
     }
 
     func clean(_ target: CleanupTarget) {
-        target.state = .cleaning
-        Task {
-            let result = await cleaner.clean(target)
-            switch result {
-            case .success:
-                let rescan = await scanner.size(of: target)
-                switch rescan {
-                case .success(let bytes): target.state = .cleaned(bytes)
-                case .failure(let err): target.state = .error(err.localizedDescription)
-                }
-            case .failure(let err):
-                target.state = .error(err.localizedDescription)
-            }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            _ = await self.performClean(target)
         }
     }
 
-    func cleanTargets(named names: Set<String>) {
-        for target in targets where names.contains(target.name) {
-            clean(target)
+    /// Cleans one target, returning bytes reclaimed (before − after).
+    private func performClean(_ target: sending CleanupTarget) async -> Int64 {
+        var before = target.sizeBytes
+        if before == nil, case .success(let b) = await scanner.size(of: target) {
+            before = b
         }
+        target.state = .cleaning
+        let result = await cleaner.clean(target)
+        switch result {
+        case .success:
+            switch await scanner.size(of: target) {
+            case .success(let after):
+                target.state = .cleaned(after)
+                return max(0, (before ?? after) - after)
+            case .failure(let err):
+                target.state = .error(err.localizedDescription)
+                return 0
+            }
+        case .failure(let err):
+            target.state = .error(err.localizedDescription)
+            return 0
+        }
+    }
+
+    /// Cleans all named targets in sequence; returns count cleaned + total reclaimed.
+    func runScheduledClean(named names: Set<String>) async -> (count: Int, reclaimed: Int64) {
+        isScheduledCleaning = true
+        defer { isScheduledCleaning = false }
+        var reclaimed: Int64 = 0
+        var count = 0
+        for target in targets where names.contains(target.name) {
+            reclaimed += await performClean(target)
+            count += 1
+        }
+        return (count, reclaimed)
     }
 
     var totalText: String {
