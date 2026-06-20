@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     let vm: CleanerViewModel
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -19,7 +20,10 @@ struct MenuBarView: View {
             }
             Divider()
             Button("Settings…") {
-                NSApplication.shared.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                // Open the dedicated Window scene, then bring the (accessory) app
+                // forward so the window actually appears in front.
+                openWindow(id: XcodeCleanerApp.settingsWindowID)
+                NSApp.activate()
             }
             Button("Quit") { NSApplication.shared.terminate(nil) }
         }

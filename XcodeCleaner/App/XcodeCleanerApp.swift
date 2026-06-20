@@ -21,8 +21,13 @@ struct XcodeCleanerApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Settings {
+        // A dedicated Window scene (not the Settings scene) — the Settings scene
+        // is unreliable when opened from a MenuBarExtra in an LSUIElement app.
+        Window("Xcode Cleaner Settings", id: Self.settingsWindowID) {
             SettingsView(vm: vm, settings: settings)
         }
+        .windowResizability(.contentSize)
     }
+
+    static let settingsWindowID = "settings"
 }
