@@ -5,13 +5,14 @@ struct XcodeCleanerApp: App {
     @State private var vm: CleanerViewModel
     @State private var settings: SettingsModel
     private let scheduler: Scheduler
+    private let notifier = UserNotifier()
 
     init() {
         let vm = CleanerViewModel()
         let settings = SettingsModel()
         _vm = State(initialValue: vm)
         _settings = State(initialValue: settings)
-        scheduler = Scheduler(vm: vm, settings: settings)
+        scheduler = Scheduler(vm: vm, settings: settings, notifier: notifier)
         scheduler.start()
     }
 
@@ -24,7 +25,7 @@ struct XcodeCleanerApp: App {
         // A dedicated Window scene (not the Settings scene) — the Settings scene
         // is unreliable when opened from a MenuBarExtra in an LSUIElement app.
         Window("Xcode Cleaner Settings", id: Self.settingsWindowID) {
-            SettingsView(vm: vm, settings: settings)
+            SettingsView(vm: vm, settings: settings, notifier: notifier)
         }
         .windowResizability(.contentSize)
     }

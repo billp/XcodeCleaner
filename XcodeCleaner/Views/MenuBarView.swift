@@ -15,17 +15,23 @@ struct MenuBarView: View {
             Text("Reclaimable: \(vm.totalText)")
                 .font(.caption).foregroundStyle(.secondary)
             Divider()
+            if vm.isScheduledCleaning {
+                Label("Scheduled clean in progress…", systemImage: "clock.arrow.circlepath")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             ForEach(vm.targets) { target in
                 TargetRow(target: target) { vm.clean(target) }
+                    .disabled(vm.isScheduledCleaning)
             }
             Divider()
             Button("Settings…") {
-                // Open the dedicated Window scene, then bring the (accessory) app
-                // forward so the window actually appears in front.
                 openWindow(id: XcodeCleanerApp.settingsWindowID)
                 NSApp.activate()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             Button("Quit") { NSApplication.shared.terminate(nil) }
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(12)
         .frame(width: 320)
