@@ -1,0 +1,17 @@
+# SwiftLint config for XcodeCleaner. Install: `brew install swiftlint`; run: `swiftlint`.
+included:
+  - XcodeCleaner
+  - XcodeCleanerTests
+disabled_rules:
+  - todo
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - force_unwrapping
+line_length:
+  warning: 120
+  error: 160
+force_unwrapping:
+  severity: warning
+identifier_name:
+  min_length: 1
