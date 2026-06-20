@@ -49,12 +49,11 @@ final class CleanerViewModel {
     }
 
     func clean(_ target: CleanupTarget) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            _ = await self.performClean(target)
-        }
+        Task { _ = await performClean(target) }
     }
 
+    // A scheduled run and an already-in-flight manual clean can overlap; all
+    // target.state writes happen on the MainActor so this is serialized and benign.
     /// Cleans one target, returning bytes reclaimed (before − after).
     private func performClean(_ target: sending CleanupTarget) async -> Int64 {
         var before = target.sizeBytes

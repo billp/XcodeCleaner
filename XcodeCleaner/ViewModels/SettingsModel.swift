@@ -108,12 +108,16 @@ final class SettingsModel {
         }
     }
 
+    private static let runFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM d 'at' h:mm a"
+        return f
+    }()
+
     var lastRunText: String? {
-        access(keyPath: \.lastRunText)
+        access(keyPath: \.lastScheduledClean)
         guard let date = lastScheduledClean else { return nil }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE, MMM d 'at' h:mm a"
-        return formatter.string(from: date)
+        return Self.runFormatter.string(from: date)
     }
 
     var nextRunText: String? {
@@ -127,8 +131,6 @@ final class SettingsModel {
             matchingPolicy: .nextTime
         )
         guard let next else { return nil }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE, MMM d 'at' h:mm a"
-        return formatter.string(from: next)
+        return Self.runFormatter.string(from: next)
     }
 }

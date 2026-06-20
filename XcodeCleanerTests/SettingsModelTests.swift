@@ -61,4 +61,14 @@ final class SettingsModelTests: XCTestCase {
         defer { suite.removePersistentDomain(forName: name) }
         XCTAssertNil(SettingsModel(userDefaults: suite).lastRunText)
     }
+
+    func testLastRunTextReflectsMutation() {
+        let name = "xclean.test.\(UUID().uuidString)"
+        let suite = UserDefaults(suiteName: name)!
+        defer { suite.removePersistentDomain(forName: name) }
+        let s = SettingsModel(userDefaults: suite)
+        XCTAssertNil(s.lastRunText)
+        s.lastScheduledClean = Date(timeIntervalSince1970: 1_700_000_000)
+        XCTAssertNotNil(s.lastRunText)
+    }
 }
