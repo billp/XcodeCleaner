@@ -54,8 +54,8 @@
 		B801000600000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
-				XcodeCleaner.entitlements,
+				Support/Info.plist,
+				Support/XcodeCleaner.entitlements,
 			);
 			target = B801000400000001 /* XcodeCleaner */;
 		};
@@ -346,13 +346,13 @@
 		B801001000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = XcodeCleaner/XcodeCleaner.entitlements;
+				CODE_SIGN_ENTITLEMENTS = XcodeCleaner/Support/XcodeCleaner.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = XcodeCleaner/Info.plist;
+				INFOPLIST_FILE = XcodeCleaner/Support/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -369,13 +369,13 @@
 		B801001000000002 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = XcodeCleaner/XcodeCleaner.entitlements;
+				CODE_SIGN_ENTITLEMENTS = XcodeCleaner/Support/XcodeCleaner.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = XcodeCleaner/Info.plist;
+				INFOPLIST_FILE = XcodeCleaner/Support/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
