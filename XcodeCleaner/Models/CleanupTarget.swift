@@ -1,20 +1,5 @@
 import Foundation
 
-enum CleanupKind: Equatable {
-    case directory(path: String)
-    case unavailableSimulators
-    case unusedRuntimes(days: Int)
-}
-
-enum TargetState: Equatable {
-    case idle
-    case scanning
-    case scanned(Int64)
-    case cleaning
-    case cleaned(Int64)
-    case error(String)
-}
-
 @Observable
 final class CleanupTarget: Identifiable {
     let id = UUID()
