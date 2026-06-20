@@ -2,12 +2,14 @@ import Foundation
 
 @MainActor
 @Observable
-final class AppState {
+final class CleanerViewModel {
     let targets: [CleanupTarget]
-    private let scanner = DiskScanner()
-    private let cleaner = Cleaner()
+    private let scanner: DiskScanning
+    private let cleaner: Cleaning
 
-    init() {
+    init(scanner: DiskScanning = DiskScanner(), cleaner: Cleaning = Cleaner()) {
+        self.scanner = scanner
+        self.cleaner = cleaner
         targets = [
             CleanupTarget(name: "XcodeBuildMCP workspaces",
                           kind: .directory(path: "~/Library/Developer/XcodeBuildMCP/workspaces")),
