@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct MenuBarView: View {
-    @State private var vm = CleanerViewModel()
+    let vm: CleanerViewModel
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -18,6 +19,8 @@ struct MenuBarView: View {
                 TargetRow(target: target) { vm.clean(target) }
             }
             Divider()
+            Button("Settings…") { openSettings() }
+                .buttonStyle(.borderless)
             Button("Quit") { NSApplication.shared.terminate(nil) }
                 .buttonStyle(.borderless)
         }
