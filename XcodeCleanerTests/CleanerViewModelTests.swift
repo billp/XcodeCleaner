@@ -13,7 +13,8 @@ final class CleanerViewModelTests: XCTestCase {
 
     func testScanSetsScannedBytes() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(123)),
-                                  cleaner: FakeCleaner(result: .success(())))
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: true))
         let target = vm.targets[0]
         vm.scan(target)
         await waitUntil { if case .scanned = target.state { return true }; return false }
@@ -22,7 +23,8 @@ final class CleanerViewModelTests: XCTestCase {
 
     func testScanFailureSetsError() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .failure(ScanError.process("x"))),
-                                  cleaner: FakeCleaner(result: .success(())))
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: true))
         let target = vm.targets[0]
         vm.scan(target)
         await waitUntil { if case .error = target.state { return true }; return false }
@@ -31,7 +33,8 @@ final class CleanerViewModelTests: XCTestCase {
 
     func testCleanSetsCleanedBytes() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
-                                  cleaner: FakeCleaner(result: .success(())))
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: true))
         let target = vm.targets[0]
         vm.clean(target)
         await waitUntil { if case .cleaned = target.state { return true }; return false }
@@ -40,10 +43,27 @@ final class CleanerViewModelTests: XCTestCase {
 
     func testCleanFailureSetsError() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
-                                  cleaner: FakeCleaner(result: .failure(ScanError.process("y"))))
+                                  cleaner: FakeCleaner(result: .failure(ScanError.process("y"))),
+                                  availability: FakeAvailability(existsResult: true))
         let target = vm.targets[0]
         vm.clean(target)
         await waitUntil { if case .error = target.state { return true }; return false }
         if case .error = target.state {} else { XCTFail("expected .error state") }
+    }
+
+    func testXcodeBuildMCPRowPresentWhenInstalled() {
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: true))
+        XCTAssertEqual(vm.targets.first?.name, "XcodeBuildMCP workspaces")
+        XCTAssertTrue(vm.targets.contains { $0.name == "XcodeBuildMCP workspaces" })
+    }
+
+    func testXcodeBuildMCPRowAbsentWhenNotInstalled() {
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: false))
+        XCTAssertFalse(vm.targets.contains { $0.name == "XcodeBuildMCP workspaces" })
+        XCTAssertEqual(vm.targets.first?.name, "Xcode DerivedData")
     }
 }
