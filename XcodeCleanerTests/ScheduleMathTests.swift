@@ -1,7 +1,7 @@
 import XCTest
 @testable import XcodeCleaner
 
-final class SchedulingTests: XCTestCase {
+final class ScheduleMathTests: XCTestCase {
     private let cal = Calendar(identifier: .gregorian)
 
     func testIsBuildProcessMatchesKnownNames() {

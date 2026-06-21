@@ -2,7 +2,7 @@ import XCTest
 @testable import XcodeCleaner
 
 @MainActor
-final class SchedulerTests: XCTestCase {
+final class SchedulerViewModelTests: XCTestCase {
     private let cal = Calendar(identifier: .gregorian)
 
     private func makeFireDate() -> Date {

@@ -1,7 +1,7 @@
 import XCTest
 @testable import XcodeCleaner
 
-final class ShellTests: XCTestCase {
+final class CommandRunnerTests: XCTestCase {
     func testShellRunCapturesNonZeroStatusAndStderr() async throws {
         let (status, _, stderr) = try await CommandRunner().run("/bin/sh", ["-c", "echo boom 1>&2; exit 3"])
         XCTAssertEqual(status, 3)

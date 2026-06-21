@@ -2,7 +2,7 @@ import XCTest
 @testable import XcodeCleaner
 
 @MainActor
-final class SettingsModelTests: XCTestCase {
+final class SettingsViewModelTests: XCTestCase {
     private func makeSuite() -> UserDefaults {
         let name = "xclean.test.\(UUID().uuidString)"
         let suite = UserDefaults(suiteName: name)!
