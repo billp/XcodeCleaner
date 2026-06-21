@@ -35,7 +35,7 @@ final class SchedulerTests: XCTestCase {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
                                   availability: FakeAvailability(existsResult: true))
-        let scheduler = Scheduler(vm: vm, settings: settings,
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings,
                                   runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)))
         await scheduler.tick(now: makeFireDate())
         XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
@@ -50,7 +50,7 @@ final class SchedulerTests: XCTestCase {
                                   cleaner: cleaner,
                                   availability: FakeAvailability(existsResult: true))
         let runner = FakeCommandRunner(status: 0, stdout: Data("xcodebuild\n".utf8))
-        let scheduler = Scheduler(vm: vm, settings: settings, runner: runner)
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings, runner: runner)
         let fire = makeFireDate()
         await scheduler.tick(now: fire)
         XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
@@ -66,7 +66,7 @@ final class SchedulerTests: XCTestCase {
                                   cleaner: cleaner,
                                   availability: FakeAvailability(existsResult: true))
         let runner = FakeCommandRunner(status: 0, stdout: Data("bash\ngoogle-chrome\n".utf8))
-        let scheduler = Scheduler(vm: vm, settings: settings, runner: runner, notifier: FakeNotifier())
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings, runner: runner, notifier: FakeNotifier())
         let fire = makeFireDate()
         await scheduler.tick(now: fire)
         await waitUntil { cleaner.cleanedKinds.count == 1 }
@@ -84,7 +84,7 @@ final class SchedulerTests: XCTestCase {
                                   cleaner: cleaner,
                                   availability: FakeAvailability(existsResult: true))
         let runner = FakeCommandRunner(status: 0, stdout: Data("xcodebuild\n".utf8))
-        let scheduler = Scheduler(vm: vm, settings: settings, runner: runner)
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings, runner: runner)
         let original = makeFireDate()
         scheduler.originalFire = original
         scheduler.pendingFire = original
@@ -104,7 +104,7 @@ final class SchedulerTests: XCTestCase {
                                   cleaner: FakeCleaner(result: .success(())),
                                   availability: FakeAvailability(existsResult: false))
         let notifier = FakeNotifier()
-        let scheduler = Scheduler(vm: vm, settings: settings,
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings,
                                   runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)),
                                   notifier: notifier)
         let fire = makeFireDate()
@@ -122,7 +122,7 @@ final class SchedulerTests: XCTestCase {
                                   cleaner: FakeCleaner(result: .success(())),
                                   availability: FakeAvailability(existsResult: false))
         let notifier = FakeNotifier()
-        let scheduler = Scheduler(vm: vm, settings: settings,
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings,
                                   runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)),
                                   notifier: notifier)
         let fire = makeFireDate()
@@ -144,7 +144,7 @@ final class SchedulerTests: XCTestCase {
             .init(status: 0, stdout: Data("xcodebuild\n".utf8), stderr: Data()),
             .init(status: 0, stdout: Data("bash\n".utf8), stderr: Data()),
         ])
-        let scheduler = Scheduler(vm: vm, settings: settings, runner: runner)
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings, runner: runner)
         let fire = makeFireDate()
 
         // First tick: build is running → postpone.

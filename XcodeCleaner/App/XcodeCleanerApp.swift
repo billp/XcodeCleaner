@@ -5,7 +5,7 @@ import AppKit
 struct XcodeCleanerApp: App {
     @State private var vm: CleanerViewModel
     @State private var settings: SettingsViewModel
-    private let scheduler: Scheduler
+    private let scheduler: SchedulerViewModel
     private let notifier: UserNotifier
 
     init() {
@@ -16,7 +16,7 @@ struct XcodeCleanerApp: App {
         _vm = State(initialValue: vm)
         _settings = State(initialValue: settings)
         self.notifier = notifier
-        scheduler = Scheduler(vm: vm, settings: settings, notifier: notifier)
+        scheduler = SchedulerViewModel(vm: vm, settings: settings, notifier: notifier)
         scheduler.start()
         settings.reconcileLaunchAtLogin()
         Task { await settings.requestSchedulingAuthorizationIfNeeded(notifier: notifier) }

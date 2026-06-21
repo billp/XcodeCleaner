@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 @Observable
-final class Scheduler {
+final class SchedulerViewModel {
     private let vm: CleanerViewModel
     private let settings: SettingsViewModel
     private let runner: CommandRunning
