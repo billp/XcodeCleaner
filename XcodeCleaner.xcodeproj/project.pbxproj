@@ -3,16 +3,8 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 70;
 	objects = {
-
-/* Begin PBXFileReference section */
-		B801000A00000001 /* XcodeCleaner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = XcodeCleaner.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B801000A00000002 /* XcodeCleanerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XcodeCleanerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-/* End PBXFileReference section */
-
-/* Begin PBXBuildFile section */
-/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		B801000200000001 /* PBXContainerItemProxy */ = {
@@ -24,42 +16,25 @@
 		};
 /* End PBXContainerItemProxy section */
 
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		B801000500000001 /* XcodeCleaner */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				B801000600000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = XcodeCleaner;
-			sourceTree = "<group>";
-		};
-		B801000500000002 /* XcodeCleanerTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = XcodeCleanerTests;
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
+/* Begin PBXFileReference section */
+		B801000A00000001 /* XcodeCleaner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = XcodeCleaner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B801000A00000002 /* XcodeCleanerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XcodeCleanerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		B801000600000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Support/Info.plist,
-				Support/XcodeCleaner.entitlements,
 			);
 			target = B801000400000001 /* XcodeCleaner */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		B801000500000001 /* XcodeCleaner */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (B801000600000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = XcodeCleaner; sourceTree = "<group>"; };
+		B801000500000002 /* XcodeCleanerTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = XcodeCleanerTests; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		B801000700000001 /* Frameworks */ = {
@@ -79,7 +54,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		B801000800000001 /* MainGroup */ = {
+		B801000800000001 = {
 			isa = PBXGroup;
 			children = (
 				B801000500000001 /* XcodeCleaner */,
@@ -174,7 +149,6 @@
 			);
 			mainGroup = B801000800000001;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			productRefGroup = B801000900000001 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -347,10 +321,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = XcodeCleaner/Support/XcodeCleaner.entitlements;
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 899S8YHUCE;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = XcodeCleaner/Support/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -358,7 +333,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.local.XcodeCleaner";
+				PRODUCT_BUNDLE_IDENTIFIER = com.local.XcodeCleaner;
 				PRODUCT_NAME = XcodeCleaner;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -370,10 +345,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = XcodeCleaner/Support/XcodeCleaner.entitlements;
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 899S8YHUCE;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = XcodeCleaner/Support/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -381,7 +357,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.local.XcodeCleaner";
+				PRODUCT_BUNDLE_IDENTIFIER = com.local.XcodeCleaner;
 				PRODUCT_NAME = XcodeCleaner;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -397,7 +373,7 @@
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.local.XcodeCleanerTests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.local.XcodeCleanerTests;
 				PRODUCT_NAME = XcodeCleanerTests;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 6.0;
@@ -413,7 +389,7 @@
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.local.XcodeCleanerTests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.local.XcodeCleanerTests;
 				PRODUCT_NAME = XcodeCleanerTests;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 6.0;
@@ -424,15 +400,6 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		B801000B00000003 /* Build configuration list for PBXProject "XcodeCleaner" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				B801000F00000001 /* Debug */,
-				B801000F00000002 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		B801000B00000001 /* Build configuration list for PBXNativeTarget "XcodeCleaner" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -451,8 +418,16 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		B801000B00000003 /* Build configuration list for PBXProject "XcodeCleaner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B801000F00000001 /* Debug */,
+				B801000F00000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
-
 	};
 	rootObject = B801000300000001 /* Project object */;
 }
