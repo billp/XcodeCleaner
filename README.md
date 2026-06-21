@@ -2,9 +2,12 @@
   <img src="docs/app-icon.png" alt="Xcode Cleaner icon" width="128" height="128">
 </p>
 
-# Xcode Cleaner
+<h1 align="center">Xcode Cleaner</h1>
 
-A tiny macOS menu bar app that reclaims the disk space Xcode quietly eats — DerivedData, simulators, caches, and more — with one click.
+<p align="center">
+  A tiny macOS menu bar app that reclaims the disk space Xcode quietly eats —<br>
+  DerivedData, simulators, caches, and more — with one click.
+</p>
 
 Click the ✨ sparkles icon in your menu bar to see how much space each Xcode cache is using, then hit **Clean** on the ones you want to clear. Want it hands-off? Turn on weekly auto-clean and forget about it.
 
