@@ -43,7 +43,7 @@ final class CleanerViewModel {
     func scan(_ target: CleanupTarget) {
         target.state = .scanning
         Task {
-            let result = await scanner.size(of: target)
+            let result = await scanner.size(of: target.kind)
             switch result {
             case .success(let bytes): target.state = .scanned(bytes)
             case .failure(let err): target.state = .error(err.localizedDescription)
@@ -78,16 +78,16 @@ final class CleanerViewModel {
     // A scheduled run and an already-in-flight manual clean can overlap; all
     // target.state writes happen on the MainActor so this is serialized and benign.
     /// Cleans one target, returning bytes reclaimed (before − after).
-    private func performClean(_ target: sending CleanupTarget) async -> Int64 {
+    private func performClean(_ target: CleanupTarget) async -> Int64 {
         var before = target.sizeBytes
-        if before == nil, case .success(let b) = await scanner.size(of: target) {
+        if before == nil, case .success(let b) = await scanner.size(of: target.kind) {
             before = b
         }
         target.state = .cleaning
-        let result = await cleaner.clean(target)
+        let result = await cleaner.clean(target.kind)
         switch result {
         case .success:
-            switch await scanner.size(of: target) {
+            switch await scanner.size(of: target.kind) {
             case .success(let after):
                 target.state = .cleaned(after)
                 return max(0, (before ?? after) - after)

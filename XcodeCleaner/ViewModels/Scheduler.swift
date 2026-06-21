@@ -9,9 +9,9 @@ final class Scheduler {
     private let notifier: Notifying
     private var timer: Timer?
 
-    internal(set) var lastFired: Date?
-    internal(set) var pendingFire: Date?
-    internal(set) var originalFire: Date?
+    var lastFired: Date?
+    var pendingFire: Date?
+    var originalFire: Date?
 
     init(vm: CleanerViewModel, settings: SettingsModel,
          runner: CommandRunning = Shell(), notifier: Notifying = UserNotifier()) {

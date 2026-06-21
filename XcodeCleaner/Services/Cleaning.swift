@@ -1,7 +1,7 @@
 import Foundation
 
 protocol Cleaning: Sendable {
-    func clean(_ target: CleanupTarget) async -> Result<Void, Error>
+    func clean(_ kind: CleanupKind) async -> Result<Void, Error>
 }
 
 struct Cleaner: Cleaning {
@@ -11,9 +11,9 @@ struct Cleaner: Cleaning {
         self.runner = runner
     }
 
-    func clean(_ target: CleanupTarget) async -> Result<Void, Error> {
+    func clean(_ kind: CleanupKind) async -> Result<Void, Error> {
         do {
-            switch target.kind {
+            switch kind {
             case .directory(let path):
                 try removeDirectoryContents((path as NSString).expandingTildeInPath)
             case .unavailableSimulators:

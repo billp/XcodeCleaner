@@ -3,7 +3,7 @@ import Foundation
 private func decode(_ data: Data) -> String { String(data: data, encoding: .utf8) ?? "" }
 
 protocol DiskScanning: Sendable {
-    func size(of target: CleanupTarget) async -> Result<Int64, Error>
+    func size(of kind: CleanupKind) async -> Result<Int64, Error>
 }
 
 struct DiskScanner: DiskScanning {
@@ -13,9 +13,9 @@ struct DiskScanner: DiskScanning {
         self.runner = runner
     }
 
-    func size(of target: CleanupTarget) async -> Result<Int64, Error> {
+    func size(of kind: CleanupKind) async -> Result<Int64, Error> {
         do {
-            switch target.kind {
+            switch kind {
             case .directory(let path):
                 return .success(try await directoryBytes(expand(path)))
             case .unavailableSimulators:

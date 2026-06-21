@@ -5,15 +5,14 @@ import os
 final class FakeCleaner: Cleaning, @unchecked Sendable {
     private let lock = OSAllocatedUnfairLock()
     private let result: Result<Void, Error>
-    private var _cleanedNames: [String] = []
+    private var _cleanedKinds: [CleanupKind] = []
 
     init(result: Result<Void, Error>) { self.result = result }
 
-    var cleanedNames: [String] { lock.withLock { _cleanedNames } }
+    var cleanedKinds: [CleanupKind] { lock.withLock { _cleanedKinds } }
 
-    func clean(_ target: CleanupTarget) async -> Result<Void, Error> {
-        let name = target.name
-        lock.withLock { _cleanedNames.append(name) }
+    func clean(_ kind: CleanupKind) async -> Result<Void, Error> {
+        lock.withLock { _cleanedKinds.append(kind) }
         return result
     }
 }

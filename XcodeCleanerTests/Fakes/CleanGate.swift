@@ -34,7 +34,7 @@ final class CleanGate: Cleaning, @unchecked Sendable {
         cont?.resume()
     }
 
-    func clean(_ target: CleanupTarget) async -> Result<Void, Error> {
+    func clean(_ kind: CleanupKind) async -> Result<Void, Error> {
         // Signal that we've started.
         startedLock.withLock { $0 = true }
         let startCont = startedContinuationLock.withLock { stored -> CheckedContinuation<Void, Never>? in

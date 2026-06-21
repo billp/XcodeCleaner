@@ -38,7 +38,7 @@ final class SchedulerTests: XCTestCase {
         let scheduler = Scheduler(vm: vm, settings: settings,
                                   runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)))
         await scheduler.tick(now: makeFireDate())
-        XCTAssertTrue(cleaner.cleanedNames.isEmpty)
+        XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
     }
 
     func testTickPostponesWhenBuildProcessRunning() async {
@@ -53,7 +53,7 @@ final class SchedulerTests: XCTestCase {
         let scheduler = Scheduler(vm: vm, settings: settings, runner: runner)
         let fire = makeFireDate()
         await scheduler.tick(now: fire)
-        XCTAssertTrue(cleaner.cleanedNames.isEmpty)
+        XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
         XCTAssertNotNil(scheduler.pendingFire)
     }
 
@@ -69,8 +69,8 @@ final class SchedulerTests: XCTestCase {
         let scheduler = Scheduler(vm: vm, settings: settings, runner: runner, notifier: FakeNotifier())
         let fire = makeFireDate()
         await scheduler.tick(now: fire)
-        await waitUntil { cleaner.cleanedNames.count == 1 }
-        XCTAssertEqual(cleaner.cleanedNames, ["Xcode DerivedData"])
+        await waitUntil { cleaner.cleanedKinds.count == 1 }
+        XCTAssertEqual(cleaner.cleanedKinds, [.directory(path: "~/Library/Developer/Xcode/DerivedData")])
         XCTAssertNotNil(scheduler.lastFired)
         XCTAssertNil(scheduler.pendingFire)
     }
@@ -91,7 +91,7 @@ final class SchedulerTests: XCTestCase {
         // Now is 25 hours after original — past the 24h give-up window.
         let now = original.addingTimeInterval(25 * 60 * 60)
         await scheduler.tick(now: now)
-        XCTAssertTrue(cleaner.cleanedNames.isEmpty)
+        XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
         XCTAssertNil(scheduler.pendingFire)
         XCTAssertNil(scheduler.originalFire)
     }
@@ -149,15 +149,15 @@ final class SchedulerTests: XCTestCase {
 
         // First tick: build is running → postpone.
         await scheduler.tick(now: fire)
-        XCTAssertTrue(cleaner.cleanedNames.isEmpty)
+        XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
         XCTAssertNotNil(scheduler.pendingFire)
         XCTAssertNotNil(scheduler.originalFire)
 
         // Advance to the postponed slot: build is now finished → fire.
         let postponed = scheduler.pendingFire!
         await scheduler.tick(now: postponed)
-        await waitUntil { cleaner.cleanedNames.count == 1 }
-        XCTAssertEqual(cleaner.cleanedNames, ["Xcode DerivedData"])
+        await waitUntil { cleaner.cleanedKinds.count == 1 }
+        XCTAssertEqual(cleaner.cleanedKinds, [.directory(path: "~/Library/Developer/Xcode/DerivedData")])
         XCTAssertNotNil(scheduler.lastFired)
         XCTAssertNil(scheduler.pendingFire)
         XCTAssertNil(scheduler.originalFire)

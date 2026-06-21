@@ -105,10 +105,10 @@ final class CleanerViewModelTests: XCTestCase {
                                   availability: FakeAvailability(existsResult: false))
         vm.scanAll()                                   // every target → 1000 bytes
         await waitUntil { vm.targets.allSatisfy { $0.sizeBytes == 1000 } }
-        let expected = Set(vm.targets.map(\.name))
+        let expected = Set(vm.targets.map(\.kind))
         vm.cleanAll()
-        await waitUntil { Set(cleaner.cleanedNames) == expected }
-        XCTAssertEqual(Set(cleaner.cleanedNames), expected)
+        await waitUntil { Set(cleaner.cleanedKinds) == expected }
+        XCTAssertEqual(Set(cleaner.cleanedKinds), expected)
     }
 
     func testCleanAllTracksBatchProgress() async {
@@ -140,6 +140,6 @@ final class CleanerViewModelTests: XCTestCase {
         await waitUntil { vm.targets.allSatisfy { $0.sizeBytes == 0 } }
         vm.cleanAll()
         try? await Task.sleep(nanoseconds: 100_000_000)  // let any (wrong) cleans run
-        XCTAssertTrue(cleaner.cleanedNames.isEmpty)
+        XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
     }
 }

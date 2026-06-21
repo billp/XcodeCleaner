@@ -19,7 +19,7 @@ final class CleanerTests: XCTestCase {
         let runner = FakeCommandRunner(status: 2, stderr: Data("nope".utf8))
         let cleaner = Cleaner(runner: runner)
         let target = CleanupTarget(name: "sim", kind: .unavailableSimulators)
-        if case .success = await cleaner.clean(target) {
+        if case .success = await cleaner.clean(target.kind) {
             XCTFail("expected failure on non-zero exit status")
         }
     }
@@ -28,7 +28,7 @@ final class CleanerTests: XCTestCase {
         let runner = FakeCommandRunner(status: 0)
         let cleaner = Cleaner(runner: runner)
         let target = CleanupTarget(name: "rt", kind: .unusedRuntimes(days: 30))
-        _ = await cleaner.clean(target)
+        _ = await cleaner.clean(target.kind)
         XCTAssertEqual(runner.calls.first?.args,
                        ["simctl", "runtime", "delete", "--notUsedSinceDays", "30"])
     }
@@ -37,7 +37,7 @@ final class CleanerTests: XCTestCase {
         let runner = FakeCommandRunner(status: 1, stderr: Data("boom".utf8))
         let scanner = DiskScanner(runner: runner)
         let target = CleanupTarget(name: "rt", kind: .unusedRuntimes(days: 30))
-        if case .success = await scanner.size(of: target) {
+        if case .success = await scanner.size(of: target.kind) {
             XCTFail("expected failure on non-zero exit status")
         }
     }
@@ -48,7 +48,7 @@ final class CleanerTests: XCTestCase {
         let runner = FakeCommandRunner(status: 2, stderr: Data("No matching images found to delete".utf8))
         let cleaner = Cleaner(runner: runner)
         let target = CleanupTarget(name: "rt", kind: .unusedRuntimes(days: 30))
-        if case .failure = await cleaner.clean(target) {
+        if case .failure = await cleaner.clean(target.kind) {
             XCTFail("‘no matching images’ should be treated as success")
         }
     }
@@ -57,7 +57,7 @@ final class CleanerTests: XCTestCase {
         let runner = FakeCommandRunner(status: 1, stderr: Data("some real failure".utf8))
         let cleaner = Cleaner(runner: runner)
         let target = CleanupTarget(name: "rt", kind: .unusedRuntimes(days: 30))
-        if case .success = await cleaner.clean(target) {
+        if case .success = await cleaner.clean(target.kind) {
             XCTFail("a real error should surface as failure")
         }
     }

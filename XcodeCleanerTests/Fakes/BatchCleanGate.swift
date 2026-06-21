@@ -14,7 +14,7 @@ final class BatchCleanGate: Cleaning, @unchecked Sendable {
         return _started
     }
 
-    func clean(_ target: CleanupTarget) async -> Result<Void, Error> {
+    func clean(_ kind: CleanupKind) async -> Result<Void, Error> {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             lock.lock()
             _started += 1
