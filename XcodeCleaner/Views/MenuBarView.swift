@@ -15,10 +15,15 @@ struct MenuBarView: View {
             Text("Reclaimable: \(vm.totalText)")
                 .font(.caption).foregroundStyle(.secondary)
             Divider()
-            if vm.isScheduledCleaning {
-                Label("Scheduled clean in progress…", systemImage: "clock.arrow.circlepath")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            if let status = vm.statusText {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(status).font(.callout).bold()
+                    Spacer()
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 8)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
             }
             ForEach(vm.targets) { target in
                 TargetRow(target: target) { vm.clean(target) }
