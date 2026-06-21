@@ -1,6 +1,6 @@
 import Foundation
 
-enum Scheduling {
+enum ScheduleMath {
     static let buildProcessNames: Set<String> = [
         "xcodebuild", "swift", "swiftc", "clang", "clang++", "ld", "swift-frontend",
     ]

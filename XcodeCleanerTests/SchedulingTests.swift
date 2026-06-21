@@ -5,13 +5,13 @@ final class SchedulingTests: XCTestCase {
     private let cal = Calendar(identifier: .gregorian)
 
     func testIsBuildProcessMatchesKnownNames() {
-        XCTAssertTrue(Scheduling.isBuildProcess("xcodebuild"))
-        XCTAssertTrue(Scheduling.isBuildProcess("/usr/bin/xcodebuild"))
-        XCTAssertTrue(Scheduling.isBuildProcess("swift-frontend"))
-        XCTAssertTrue(Scheduling.isBuildProcess("clang"))
-        XCTAssertTrue(Scheduling.isBuildProcess("clang++"))
-        XCTAssertFalse(Scheduling.isBuildProcess("Photos"))
-        XCTAssertFalse(Scheduling.isBuildProcess(""))
+        XCTAssertTrue(ScheduleMath.isBuildProcess("xcodebuild"))
+        XCTAssertTrue(ScheduleMath.isBuildProcess("/usr/bin/xcodebuild"))
+        XCTAssertTrue(ScheduleMath.isBuildProcess("swift-frontend"))
+        XCTAssertTrue(ScheduleMath.isBuildProcess("clang"))
+        XCTAssertTrue(ScheduleMath.isBuildProcess("clang++"))
+        XCTAssertFalse(ScheduleMath.isBuildProcess("Photos"))
+        XCTAssertFalse(ScheduleMath.isBuildProcess(""))
     }
 
     func testShouldFireMatchesExactSlot() {
@@ -21,7 +21,7 @@ final class SchedulingTests: XCTestCase {
         comps.hour = 2; comps.minute = 0; comps.second = 30
         comps.timeZone = TimeZone.current
         let now = cal.date(from: comps)!
-        XCTAssertTrue(Scheduling.shouldFire(now: now, weekday: 6, hour: 2, minute: 0, lastFired: nil))
+        XCTAssertTrue(ScheduleMath.shouldFire(now: now, weekday: 6, hour: 2, minute: 0, lastFired: nil))
     }
 
     func testShouldFireRespectsLastFired() {
@@ -31,7 +31,7 @@ final class SchedulingTests: XCTestCase {
         comps.timeZone = TimeZone.current
         let slot = cal.date(from: comps)!
         let now = slot.addingTimeInterval(30) // 02:00:30, same slot
-        XCTAssertFalse(Scheduling.shouldFire(now: now, weekday: 6, hour: 2, minute: 0, lastFired: slot))
+        XCTAssertFalse(ScheduleMath.shouldFire(now: now, weekday: 6, hour: 2, minute: 0, lastFired: slot))
     }
 
     func testShouldFireAllowsNextWeekAfterLastFired() {
@@ -43,7 +43,7 @@ final class SchedulingTests: XCTestCase {
         comps.day = 26  // this Friday, same slot
         comps.second = 30
         let now = cal.date(from: comps)!
-        XCTAssertTrue(Scheduling.shouldFire(now: now, weekday: 6, hour: 2, minute: 0, lastFired: lastFired))
+        XCTAssertTrue(ScheduleMath.shouldFire(now: now, weekday: 6, hour: 2, minute: 0, lastFired: lastFired))
     }
 
     func testShouldFireIgnoresDifferentWeekday() {
@@ -53,7 +53,7 @@ final class SchedulingTests: XCTestCase {
         comps.hour = 2; comps.minute = 0; comps.second = 0
         comps.timeZone = TimeZone.current
         let now = cal.date(from: comps)!
-        XCTAssertFalse(Scheduling.shouldFire(now: now, weekday: 6, hour: 2, minute: 0, lastFired: nil))
+        XCTAssertFalse(ScheduleMath.shouldFire(now: now, weekday: 6, hour: 2, minute: 0, lastFired: nil))
     }
 
     func testPostponedFireTimeAddsHourAndTruncatesMinutes() {
@@ -62,7 +62,7 @@ final class SchedulingTests: XCTestCase {
         comps.hour = 2; comps.minute = 0; comps.second = 30
         comps.timeZone = TimeZone.current
         let from = cal.date(from: comps)!
-        let result = Scheduling.postponedFireTime(from: from)
+        let result = ScheduleMath.postponedFireTime(from: from)
         let resultComps = cal.dateComponents([.hour, .minute, .second], from: result)
         XCTAssertEqual(resultComps.hour, 3)
         XCTAssertEqual(resultComps.minute, 0)
@@ -75,7 +75,7 @@ final class SchedulingTests: XCTestCase {
         comps.hour = 2; comps.minute = 30; comps.second = 45
         comps.timeZone = TimeZone.current
         let from = cal.date(from: comps)!
-        let result = Scheduling.postponedFireTime(from: from)
+        let result = ScheduleMath.postponedFireTime(from: from)
         let resultComps = cal.dateComponents([.hour, .minute, .second], from: result)
         XCTAssertEqual(resultComps.hour, 3)
         XCTAssertEqual(resultComps.minute, 0)
@@ -88,7 +88,7 @@ final class SchedulingTests: XCTestCase {
         comps.hour = 2; comps.minute = 0; comps.second = 0
         comps.timeZone = TimeZone.current
         let original = cal.date(from: comps)!
-        let result = Scheduling.giveUpTime(originalFire: original)
+        let result = ScheduleMath.giveUpTime(originalFire: original)
         XCTAssertEqual(result.timeIntervalSince(original), 24 * 60 * 60, accuracy: 1)
     }
 }

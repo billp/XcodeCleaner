@@ -36,7 +36,7 @@ final class Scheduler {
         guard settings.schedulingEnabled else { return }
 
         if pendingFire == nil {
-            guard Scheduling.shouldFire(
+            guard ScheduleMath.shouldFire(
                 now: now,
                 weekday: settings.scheduleWeekday,
                 hour: settings.scheduleHour,
@@ -58,17 +58,17 @@ final class Scheduler {
         let buildRunning = psOutput
             .split(separator: "\n")
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-            .contains { Scheduling.isBuildProcess($0) }
+            .contains { ScheduleMath.isBuildProcess($0) }
 
         if buildRunning {
             if pendingFire == nil {
                 originalFire = now
             }
-            if let original = originalFire, now >= Scheduling.giveUpTime(originalFire: original) {
+            if let original = originalFire, now >= ScheduleMath.giveUpTime(originalFire: original) {
                 pendingFire = nil
                 originalFire = nil
             } else {
-                pendingFire = Scheduling.postponedFireTime(from: now)
+                pendingFire = ScheduleMath.postponedFireTime(from: now)
             }
             return
         }
