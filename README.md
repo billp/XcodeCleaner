@@ -20,7 +20,7 @@ A macOS menu bar app (sparkles icon) that shows the disk usage of Xcode-related 
 MVVM with protocol-injected services:
 
 - **Models** (`CleanupTarget`, `CleanupKind`, `TargetState`) — what to clean and per-row state.
-- **Services** — `CommandRunning` (`Shell`) runs processes; `DiskScanning` (`DiskScanner`) computes sizes; `Cleaning` (`Cleaner`) deletes; `SimctlParsing` parses `simctl` JSON; `AvailabilityChecking` (`AvailabilityChecker`) gates the XcodeBuildMCP row; `ScheduleMath` provides pure time-matching and build-process detection functions. Each service is a protocol with a concrete impl and a test fake.
+- **Services** — `CommandRunning` (`CommandRunner`) runs processes; `DiskScanning` (`DiskScanner`) computes sizes; `Cleaning` (`Cleaner`) deletes; `SimctlParsing` parses `simctl` JSON; `AvailabilityChecking` (`AvailabilityChecker`) gates the XcodeBuildMCP row; `ScheduleMath` provides pure time-matching and build-process detection functions. Each service is a protocol with a concrete impl and a test fake.
 - **ViewModel** (`CleanerViewModel`) — `@MainActor @Observable`; owns the targets and orchestrates scan/clean. Depends on the service protocols (real defaults), so it is unit-tested with fakes.
 - **SettingsViewModel** — `@MainActor @Observable`; wraps `UserDefaults` for persistent settings (launch-at-login, scheduling, per-target checkboxes) and `SMAppService` for login-item registration.
 - **SchedulerViewModel** — `@MainActor @Observable`; owns a 60s `Timer` and orchestrates weekly scheduled cleaning with a build-process safety guard.
