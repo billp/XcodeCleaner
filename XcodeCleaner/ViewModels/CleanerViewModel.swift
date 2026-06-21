@@ -45,8 +45,8 @@ final class CleanerViewModel {
         Task {
             let result = await scanner.size(of: target.kind)
             switch result {
-            case .success(let bytes): target.state = .scanned(bytes)
-            case .failure(let err): target.state = .error(err.localizedDescription)
+            case .success(let bytes): target.state = .scanned(bytes: bytes)
+            case .failure(let err): target.state = .error(message: err.localizedDescription)
             }
         }
     }
@@ -89,14 +89,14 @@ final class CleanerViewModel {
         case .success:
             switch await scanner.size(of: target.kind) {
             case .success(let after):
-                target.state = .cleaned(after)
+                target.state = .cleaned(bytes: after)
                 return max(0, (before ?? after) - after)
             case .failure(let err):
-                target.state = .error(err.localizedDescription)
+                target.state = .error(message: err.localizedDescription)
                 return 0
             }
         case .failure(let err):
-            target.state = .error(err.localizedDescription)
+            target.state = .error(message: err.localizedDescription)
             return 0
         }
     }

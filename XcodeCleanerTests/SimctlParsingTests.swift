@@ -6,7 +6,7 @@ final class SimctlParsingTests: XCTestCase {
 
     func testSizeTextFormatsScannedBytes() {
         let t = CleanupTarget(name: "X", kind: .unavailableSimulators)
-        t.state = .scanned(1_500_000_000)
+        t.state = .scanned(bytes: 1_500_000_000)
         XCTAssertEqual(t.sizeBytes, 1_500_000_000)
         XCTAssertTrue(t.sizeText.contains("GB"))
     }
