@@ -71,4 +71,17 @@ final class SettingsViewModelTests: XCTestCase {
         s.lastScheduledClean = Date(timeIntervalSince1970: 1_700_000_000)
         XCTAssertNotNil(s.lastRunText)
     }
+
+    func testRequestsAuthOnlyWhenSchedulingEnabled() async {
+        let settings = SettingsViewModel(userDefaults: makeSuite())
+        let notifier = FakeNotifier()
+
+        settings.schedulingEnabled = false
+        await settings.requestSchedulingAuthorizationIfNeeded(notifier: notifier)
+        XCTAssertEqual(notifier.authorizationRequests, 0)
+
+        settings.schedulingEnabled = true
+        await settings.requestSchedulingAuthorizationIfNeeded(notifier: notifier)
+        XCTAssertEqual(notifier.authorizationRequests, 1)
+    }
 }
