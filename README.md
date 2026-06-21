@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/app-icon.png" alt="Xcode Cleaner icon" width="128" height="128">
+</p>
+
 # Xcode Cleaner
 
 A tiny macOS menu bar app that reclaims the disk space Xcode quietly eats — DerivedData, simulators, caches, and more — with one click.
