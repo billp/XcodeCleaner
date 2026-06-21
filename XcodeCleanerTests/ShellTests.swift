@@ -15,4 +15,14 @@ final class ShellTests: XCTestCase {
         let text = String(data: stdout, encoding: .utf8) ?? ""
         XCTAssertTrue(text.contains("hello"), "Expected 'hello' in stdout, got: \(text)")
     }
+
+    /// Regression: output larger than the OS pipe buffer (~64KB) must not deadlock.
+    /// The old Pipe-based implementation hung here because the child blocked on a
+    /// full stdout buffer and never exited (so terminationHandler never fired).
+    func testShellRunHandlesOutputLargerThanPipeBuffer() async throws {
+        // ~220KB of stdout (20000 lines × 11 bytes), well over the 64KB buffer.
+        let (status, stdout, _) = try await Shell().run("/bin/sh", ["-c", "yes 1234567890 | head -n 20000"])
+        XCTAssertEqual(status, 0)
+        XCTAssertGreaterThan(stdout.count, 100_000)
+    }
 }
