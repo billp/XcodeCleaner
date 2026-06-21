@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MenuBarView: View {
-    let vm: CleanerViewModel
+    let cleaner: CleanerViewModel
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -9,15 +9,15 @@ struct MenuBarView: View {
             HStack {
                 Text("Xcode Cleaner").font(.headline)
                 Spacer()
-                Button { vm.scanAll() } label: { Image(systemName: "arrow.clockwise") }
+                Button { cleaner.scanAll() } label: { Image(systemName: "arrow.clockwise") }
                     .buttonStyle(.borderless)
             }
             .padding(.horizontal, 8)
-            Text("Reclaimable: \(vm.totalText)")
+            Text("Reclaimable: \(cleaner.totalText)")
                 .font(.caption).foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
             Divider()
-            if let status = vm.statusText {
+            if let status = cleaner.statusText {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
                     Text(status).font(.callout).bold()
@@ -27,25 +27,25 @@ struct MenuBarView: View {
                 .padding(.horizontal, 8)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
             }
-            ForEach(vm.targets) { target in
-                TargetRow(target: target) { vm.clean(target) }
-                    .disabled(vm.isScheduledCleaning)
+            ForEach(cleaner.targets) { target in
+                TargetRow(target: target) { cleaner.clean(target) }
+                    .disabled(cleaner.isScheduledCleaning)
                     .padding(.horizontal, 8)
             }
             Divider()
             HStack(spacing: 10) {
                 Text("Clean All").font(.body)
                 Spacer()
-                if vm.isCleaningAll {
-                    ProgressView(value: Double(vm.cleanAllCompleted),
-                                 total: Double(vm.cleanAllTotal))
+                if cleaner.isCleaningAll {
+                    ProgressView(value: Double(cleaner.cleanAllCompleted),
+                                 total: Double(cleaner.cleanAllTotal))
                         .progressViewStyle(.linear)
                         .frame(width: 72)
                 } else {
-                    Button("Clean") { vm.cleanAll() }
+                    Button("Clean") { cleaner.cleanAll() }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
-                        .disabled(vm.isScheduledCleaning)
+                        .disabled(cleaner.isScheduledCleaning)
                 }
             }
             .padding(.vertical, 4)
@@ -63,6 +63,6 @@ struct MenuBarView: View {
         }
         .padding(12)
         .frame(width: 320)
-        .onAppear { vm.scanAll() }
+        .onAppear { cleaner.scanAll() }
     }
 }

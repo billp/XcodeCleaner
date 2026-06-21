@@ -1,12 +1,12 @@
 import SwiftUI
 
 struct SettingsView: View {
-    let vm: CleanerViewModel
+    let cleaner: CleanerViewModel
     @Bindable var settings: SettingsViewModel
     let notifier: Notifying
 
-    init(vm: CleanerViewModel, settings: SettingsViewModel, notifier: Notifying) {
-        self.vm = vm
+    init(cleaner: CleanerViewModel, settings: SettingsViewModel, notifier: Notifying) {
+        self.cleaner = cleaner
         self.settings = settings
         self.notifier = notifier
     }
@@ -15,7 +15,7 @@ struct SettingsView: View {
         TabView {
             GeneralTab(settings: settings)
                 .tabItem { Label("General", systemImage: "gearshape") }
-            ScheduleTab(vm: vm, settings: settings, notifier: notifier)
+            ScheduleTab(cleaner: cleaner, settings: settings, notifier: notifier)
                 .tabItem { Label("Schedule", systemImage: "clock") }
         }
         .frame(width: 480, height: 380)
@@ -66,7 +66,7 @@ private struct GeneralTab: View {
 }
 
 private struct ScheduleTab: View {
-    let vm: CleanerViewModel
+    let cleaner: CleanerViewModel
     @Bindable var settings: SettingsViewModel
     let notifier: Notifying
 
@@ -120,7 +120,7 @@ private struct ScheduleTab: View {
             .disabled(!settings.schedulingEnabled)
 
             Section("Targets to auto-clean") {
-                ForEach(vm.targets) { target in
+                ForEach(cleaner.targets) { target in
                     Toggle(target.name, isOn: bindingFor(target.name))
                 }
             }
