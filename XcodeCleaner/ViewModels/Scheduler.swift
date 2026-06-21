@@ -4,7 +4,7 @@ import Foundation
 @Observable
 final class Scheduler {
     private let vm: CleanerViewModel
-    private let settings: SettingsModel
+    private let settings: SettingsViewModel
     private let runner: CommandRunning
     private let notifier: Notifying
     private var timer: Timer?
@@ -13,7 +13,7 @@ final class Scheduler {
     var pendingFire: Date?
     var originalFire: Date?
 
-    init(vm: CleanerViewModel, settings: SettingsModel,
+    init(vm: CleanerViewModel, settings: SettingsViewModel,
          runner: CommandRunning = CommandRunner(), notifier: Notifying = UserNotifier()) {
         self.vm = vm
         self.settings = settings

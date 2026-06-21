@@ -4,14 +4,14 @@ import AppKit
 @main
 struct XcodeCleanerApp: App {
     @State private var vm: CleanerViewModel
-    @State private var settings: SettingsModel
+    @State private var settings: SettingsViewModel
     private let scheduler: Scheduler
     private let notifier: UserNotifier
 
     init() {
         Self.terminateOtherInstances()
         let vm = CleanerViewModel()
-        let settings = SettingsModel()
+        let settings = SettingsViewModel()
         let notifier = UserNotifier()
         _vm = State(initialValue: vm)
         _settings = State(initialValue: settings)
@@ -19,7 +19,7 @@ struct XcodeCleanerApp: App {
         scheduler = Scheduler(vm: vm, settings: settings, notifier: notifier)
         scheduler.start()
         settings.reconcileLaunchAtLogin()
-        Task { await requestSchedulingAuthorizationIfNeeded(settings: settings, notifier: notifier) }
+        Task { await settings.requestSchedulingAuthorizationIfNeeded(notifier: notifier) }
     }
 
     var body: some Scene {

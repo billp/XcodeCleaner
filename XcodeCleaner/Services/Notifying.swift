@@ -23,12 +23,3 @@ struct UserNotifier: Notifying {
         try? await UNUserNotificationCenter.current().add(request)
     }
 }
-
-/// Requests notification authorization at launch when scheduling is already
-/// enabled. The Schedule toggle's onChange only fires on a fresh toggle, so a
-/// persisted-enabled schedule would otherwise never (re)request authorization.
-@MainActor
-func requestSchedulingAuthorizationIfNeeded(settings: SettingsModel, notifier: Notifying) async {
-    guard settings.schedulingEnabled else { return }
-    await notifier.requestAuthorization()
-}

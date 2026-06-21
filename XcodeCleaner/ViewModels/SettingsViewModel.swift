@@ -3,7 +3,7 @@ import ServiceManagement
 
 @MainActor
 @Observable
-final class SettingsModel {
+final class SettingsViewModel {
     private let defaults: UserDefaults
 
     init(userDefaults: UserDefaults = .standard) {
@@ -54,6 +54,14 @@ final class SettingsModel {
             launchAtLoginError = error.localizedDescription
         }
         withMutation(keyPath: \.launchAtLogin) { }
+    }
+
+    /// Requests notification authorization at launch when scheduling is already
+    /// enabled. The Schedule toggle's onChange only fires on a fresh toggle, so a
+    /// persisted-enabled schedule would otherwise never (re)request authorization.
+    func requestSchedulingAuthorizationIfNeeded(notifier: Notifying) async {
+        guard schedulingEnabled else { return }
+        await notifier.requestAuthorization()
     }
 
     var schedulingEnabled: Bool {

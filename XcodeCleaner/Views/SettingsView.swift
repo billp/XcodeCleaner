@@ -2,10 +2,10 @@ import SwiftUI
 
 struct SettingsView: View {
     let vm: CleanerViewModel
-    @Bindable var settings: SettingsModel
+    @Bindable var settings: SettingsViewModel
     let notifier: Notifying
 
-    init(vm: CleanerViewModel, settings: SettingsModel, notifier: Notifying) {
+    init(vm: CleanerViewModel, settings: SettingsViewModel, notifier: Notifying) {
         self.vm = vm
         self.settings = settings
         self.notifier = notifier
@@ -23,7 +23,7 @@ struct SettingsView: View {
 }
 
 private struct GeneralTab: View {
-    @Bindable var settings: SettingsModel
+    @Bindable var settings: SettingsViewModel
 
     var body: some View {
         Form {
@@ -67,7 +67,7 @@ private struct GeneralTab: View {
 
 private struct ScheduleTab: View {
     let vm: CleanerViewModel
-    @Bindable var settings: SettingsModel
+    @Bindable var settings: SettingsViewModel
     let notifier: Notifying
 
     private let weekdaySymbols = Calendar.current.weekdaySymbols

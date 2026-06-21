@@ -29,7 +29,7 @@ final class SchedulerTests: XCTestCase {
     }
 
     func testTickDoesNothingWhenSchedulingDisabled() async {
-        let settings = SettingsModel(userDefaults: makeSuite())
+        let settings = SettingsViewModel(userDefaults: makeSuite())
         settings.schedulingEnabled = false
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
@@ -42,7 +42,7 @@ final class SchedulerTests: XCTestCase {
     }
 
     func testTickPostponesWhenBuildProcessRunning() async {
-        let settings = SettingsModel(userDefaults: makeSuite())
+        let settings = SettingsViewModel(userDefaults: makeSuite())
         settings.schedulingEnabled = true
         settings.enabledTargetNames = ["Xcode DerivedData"]
         let cleaner = FakeCleaner(result: .success(()))
@@ -58,7 +58,7 @@ final class SchedulerTests: XCTestCase {
     }
 
     func testTickFiresWhenNoBuildProcessRunning() async {
-        let settings = SettingsModel(userDefaults: makeSuite())
+        let settings = SettingsViewModel(userDefaults: makeSuite())
         settings.schedulingEnabled = true
         settings.enabledTargetNames = ["Xcode DerivedData"]
         let cleaner = FakeCleaner(result: .success(()))
@@ -76,7 +76,7 @@ final class SchedulerTests: XCTestCase {
     }
 
     func testTickGivesUpAfter24Hours() async {
-        let settings = SettingsModel(userDefaults: makeSuite())
+        let settings = SettingsViewModel(userDefaults: makeSuite())
         settings.schedulingEnabled = true
         settings.enabledTargetNames = ["Xcode DerivedData"]
         let cleaner = FakeCleaner(result: .success(()))
@@ -97,7 +97,7 @@ final class SchedulerTests: XCTestCase {
     }
 
     func testTickRecordsLastCleanAndNotifies() async {
-        let settings = SettingsModel(userDefaults: makeSuite())
+        let settings = SettingsViewModel(userDefaults: makeSuite())
         settings.schedulingEnabled = true
         settings.enabledTargetNames = ["Xcode DerivedData"]
         let vm = CleanerViewModel(scanner: FakeScanner(results: [.success(1000), .success(0)]),
@@ -115,7 +115,7 @@ final class SchedulerTests: XCTestCase {
     }
 
     func testTickWithNoTargetsDoesNotNotify() async {
-        let settings = SettingsModel(userDefaults: makeSuite())
+        let settings = SettingsViewModel(userDefaults: makeSuite())
         settings.schedulingEnabled = true
         settings.enabledTargetNames = []    // no targets enabled
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
@@ -132,7 +132,7 @@ final class SchedulerTests: XCTestCase {
     }
 
     func testTickPostponesThenFiresWhenBuildFinishes() async {
-        let settings = SettingsModel(userDefaults: makeSuite())
+        let settings = SettingsViewModel(userDefaults: makeSuite())
         settings.schedulingEnabled = true
         settings.enabledTargetNames = ["Xcode DerivedData"]
         let cleaner = FakeCleaner(result: .success(()))

@@ -9,15 +9,15 @@ final class NotifyingTests: XCTestCase {
     }
 
     func testRequestsAuthOnlyWhenSchedulingEnabled() async {
-        let settings = SettingsModel(userDefaults: makeSuite())
+        let settings = SettingsViewModel(userDefaults: makeSuite())
         let notifier = FakeNotifier()
 
         settings.schedulingEnabled = false
-        await requestSchedulingAuthorizationIfNeeded(settings: settings, notifier: notifier)
+        await settings.requestSchedulingAuthorizationIfNeeded(notifier: notifier)
         XCTAssertEqual(notifier.authorizationRequests, 0)
 
         settings.schedulingEnabled = true
-        await requestSchedulingAuthorizationIfNeeded(settings: settings, notifier: notifier)
+        await settings.requestSchedulingAuthorizationIfNeeded(notifier: notifier)
         XCTAssertEqual(notifier.authorizationRequests, 1)
     }
 }
