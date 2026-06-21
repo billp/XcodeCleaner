@@ -15,7 +15,7 @@ final class CleanerViewModel {
 
     init(scanner: DiskScanning = DiskScanner(),
          cleaner: Cleaning = Cleaner(),
-         availability: AvailabilityChecking = FileManagerAvailability()) {
+         availability: AvailabilityChecking = AvailabilityChecker()) {
         self.scanner = scanner
         self.cleaner = cleaner
         self.availability = availability
