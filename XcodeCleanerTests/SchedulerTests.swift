@@ -114,6 +114,23 @@ final class SchedulerTests: XCTestCase {
         XCTAssertEqual(notifier.finishedCalls.first?.count, 1)
     }
 
+    func testTickWithNoTargetsDoesNotNotify() async {
+        let settings = SettingsModel(userDefaults: makeSuite())
+        settings.schedulingEnabled = true
+        settings.enabledTargetNames = []    // no targets enabled
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: false))
+        let notifier = FakeNotifier()
+        let scheduler = Scheduler(vm: vm, settings: settings,
+                                  runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)),
+                                  notifier: notifier)
+        let fire = makeFireDate()
+        await scheduler.tick(now: fire)
+        XCTAssertEqual(settings.lastScheduledClean, fire)
+        XCTAssertTrue(notifier.finishedCalls.isEmpty)
+    }
+
     func testTickPostponesThenFiresWhenBuildFinishes() async {
         let settings = SettingsModel(userDefaults: makeSuite())
         settings.schedulingEnabled = true

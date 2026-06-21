@@ -79,21 +79,22 @@ final class CleanerViewModelTests: XCTestCase {
         XCTAssertFalse(vm.isScheduledCleaning)
     }
 
-    func testBusyStateReflectsManualCleaning() {
+    func testBusyStateReflectsManualCleaning() async {
+        let gate = CleanGate()
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
-                                  cleaner: FakeCleaner(result: .success(())),
+                                  cleaner: gate,
                                   availability: FakeAvailability(existsResult: false))
-        XCTAssertFalse(vm.isManualCleaning)
         XCTAssertFalse(vm.isBusy)
         XCTAssertNil(vm.statusText)
 
-        vm.targets[0].state = .cleaning
+        vm.clean(vm.targets[0])              // fire-and-forget Task
+        await gate.waitUntilStarted()        // clean is now in-flight
         XCTAssertTrue(vm.isManualCleaning)
         XCTAssertTrue(vm.isBusy)
         XCTAssertEqual(vm.statusText, "Cleaning…")
 
-        vm.targets[0].state = .cleaned(0)
-        XCTAssertFalse(vm.isBusy)
+        gate.release()
+        await waitUntil { !vm.isBusy }       // poll until clean finishes
         XCTAssertNil(vm.statusText)
     }
 }
