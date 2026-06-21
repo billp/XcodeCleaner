@@ -14,7 +14,7 @@ final class Scheduler {
     var originalFire: Date?
 
     init(vm: CleanerViewModel, settings: SettingsModel,
-         runner: CommandRunning = Shell(), notifier: Notifying = UserNotifier()) {
+         runner: CommandRunning = CommandRunner(), notifier: Notifying = UserNotifier()) {
         self.vm = vm
         self.settings = settings
         self.runner = runner

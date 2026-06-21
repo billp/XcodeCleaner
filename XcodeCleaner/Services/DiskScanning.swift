@@ -9,7 +9,7 @@ protocol DiskScanning: Sendable {
 struct DiskScanner: DiskScanning {
     let runner: CommandRunning
 
-    init(runner: CommandRunning = Shell()) {
+    init(runner: CommandRunning = CommandRunner()) {
         self.runner = runner
     }
 

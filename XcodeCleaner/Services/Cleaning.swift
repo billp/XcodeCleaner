@@ -7,7 +7,7 @@ protocol Cleaning: Sendable {
 struct Cleaner: Cleaning {
     let runner: CommandRunning
 
-    init(runner: CommandRunning = Shell()) {
+    init(runner: CommandRunning = CommandRunner()) {
         self.runner = runner
     }
 

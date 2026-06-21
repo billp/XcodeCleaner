@@ -4,7 +4,7 @@ protocol CommandRunning: Sendable {
     func run(_ launchPath: String, _ args: [String]) async throws -> (status: Int32, stdout: Data, stderr: Data)
 }
 
-struct Shell: CommandRunning {
+struct CommandRunner: CommandRunning {
     func run(_ launchPath: String, _ args: [String]) async throws -> (status: Int32, stdout: Data, stderr: Data) {
         // Redirect child output to temp files rather than Pipes. A Pipe's OS buffer
         // is ~64KB; if the child writes more before anyone drains it (and we only
