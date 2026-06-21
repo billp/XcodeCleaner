@@ -75,7 +75,9 @@ final class Scheduler {
 
         let result = await vm.runScheduledClean(named: settings.enabledTargetNames)
         settings.lastScheduledClean = now
-        await notifier.notifyCleanFinished(targetCount: result.count, reclaimedBytes: result.reclaimed)
+        if result.count > 0 {
+            await notifier.notifyCleanFinished(targetCount: result.count, reclaimedBytes: result.reclaimed)
+        }
         lastFired = now
         pendingFire = nil
         originalFire = nil
