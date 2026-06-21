@@ -28,6 +28,7 @@ struct TargetRow: View {
             Button("Clean", action: onClean)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .disabled(target.sizeBytes == 0)   // nothing to clean
         }
     }
 }

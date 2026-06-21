@@ -33,9 +33,14 @@ struct MenuBarView: View {
                     .padding(.horizontal, 8)
             }
             Divider()
-            Button("Clean All") { vm.cleanAll() }
-                .buttonStyle(MenuRowButtonStyle())
-                .disabled(vm.isScheduledCleaning)
+            HStack {
+                Spacer()
+                Button("Clean All") { vm.cleanAll() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(vm.isScheduledCleaning)
+            }
+            .padding(.horizontal, 8)
             Divider()
             VStack(spacing: 0) {
                 Button("Settings…") {
