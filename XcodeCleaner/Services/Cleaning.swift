@@ -17,21 +17,23 @@ struct Cleaner: Cleaning {
             case .directory(let path):
                 try removeDirectoryContents((path as NSString).expandingTildeInPath)
             case .unavailableSimulators:
-                let (status, _, errData) = try await runner.run("/usr/bin/xcrun", ["simctl", "delete", "unavailable"])
-                if status != 0 {
-                    let msg = String(data: errData, encoding: .utf8) ?? ""
-                    throw ScanError.process(msg.isEmpty ? "exit \(status)" : msg)
-                }
+                try await runSimctl(["simctl", "delete", "unavailable"])
             case .unusedRuntimes(let days):
-                let (status, _, errData) = try await runner.run("/usr/bin/xcrun",
-                    ["simctl", "runtime", "delete", "--notUsedSinceDays", String(days)])
-                if status != 0 {
-                    let msg = String(data: errData, encoding: .utf8) ?? ""
-                    throw ScanError.process(msg.isEmpty ? "exit \(status)" : msg)
-                }
+                try await runSimctl(["simctl", "runtime", "delete", "--notUsedSinceDays", String(days)])
             }
             return .success(())
         } catch { return .failure(error) }
+    }
+
+    /// Runs `xcrun` with the given args. A non-zero exit whose stderr says nothing
+    /// matched (e.g. "No matching images found to delete" when no runtimes are old
+    /// enough) is treated as success — there was simply nothing to clean.
+    private func runSimctl(_ args: [String]) async throws {
+        let (status, _, errData) = try await runner.run("/usr/bin/xcrun", args)
+        guard status != 0 else { return }
+        let stderr = String(data: errData, encoding: .utf8) ?? ""
+        if stderr.localizedCaseInsensitiveContains("no matching") { return }
+        throw ScanError.process(stderr.isEmpty ? "exit \(status)" : stderr)
     }
 
     /// Deletes everything inside `path` but keeps `path` itself.

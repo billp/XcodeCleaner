@@ -41,4 +41,28 @@ final class CleanerTests: XCTestCase {
             XCTFail("expected failure on non-zero exit status")
         }
     }
+
+    func testCleanRuntimesTreatsNoMatchingAsSuccess() async {
+        // `simctl runtime delete --notUsedSinceDays N` exits 2 with this message
+        // when nothing is old enough — that's "nothing to clean", not a failure.
+        let runner = FakeCommandRunner(status: 2, stderr: Data("No matching images found to delete".utf8))
+        let cleaner = Cleaner(runner: runner)
+        let target = CleanupTarget(name: "rt", kind: .unusedRuntimes(days: 30))
+        if case .failure = await cleaner.clean(target) {
+            XCTFail("‘no matching images’ should be treated as success")
+        }
+    }
+
+    func testCleanRuntimesSurfacesRealError() async {
+        let runner = FakeCommandRunner(status: 1, stderr: Data("some real failure".utf8))
+        let cleaner = Cleaner(runner: runner)
+        let target = CleanupTarget(name: "rt", kind: .unusedRuntimes(days: 30))
+        if case .success = await cleaner.clean(target) {
+            XCTFail("a real error should surface as failure")
+        }
+    }
+
+    func testScanErrorShowsMessageInLocalizedDescription() {
+        XCTAssertEqual(ScanError.process("boom").localizedDescription, "boom")
+    }
 }
