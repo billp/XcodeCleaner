@@ -13,22 +13,47 @@ final class SettingsModel {
     var launchAtLogin: Bool {
         get {
             access(keyPath: \.launchAtLogin)
-            return defaults.bool(forKey: "xclean.launchAtLogin")
+            return SMAppService.mainApp.status == .enabled
         }
         set {
-            withMutation(keyPath: \.launchAtLogin) {
-                defaults.set(newValue, forKey: "xclean.launchAtLogin")
-            }
             do {
                 if newValue {
                     try SMAppService.mainApp.register()
                 } else {
                     try SMAppService.mainApp.unregister()
                 }
+                launchAtLoginError = nil
             } catch {
-                // Best-effort; persists intent. The app re-registers on launch.
+                launchAtLoginError = error.localizedDescription
             }
+            defaults.set(newValue, forKey: "xclean.launchAtLogin")
+            withMutation(keyPath: \.launchAtLogin) { }
+            withMutation(keyPath: \.launchAtLoginDesired) { }
         }
+    }
+
+    /// The user's desired state, persisted across launches. Used by
+    /// `reconcileLaunchAtLogin` to re-register if the system dropped the
+    /// login item. May differ from `launchAtLogin` when registration failed.
+    var launchAtLoginDesired: Bool {
+        access(keyPath: \.launchAtLoginDesired)
+        return defaults.bool(forKey: "xclean.launchAtLogin")
+    }
+
+    /// Last error from registering or unregistering the login item, if any.
+    var launchAtLoginError: String?
+
+    /// Re-register the login item on launch if the user previously enabled it
+    /// but the system dropped it (e.g. after an OS update or app move).
+    func reconcileLaunchAtLogin() {
+        guard launchAtLoginDesired, SMAppService.mainApp.status != .enabled else { return }
+        do {
+            try SMAppService.mainApp.register()
+            launchAtLoginError = nil
+        } catch {
+            launchAtLoginError = error.localizedDescription
+        }
+        withMutation(keyPath: \.launchAtLogin) { }
     }
 
     var schedulingEnabled: Bool {

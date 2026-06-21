@@ -30,7 +30,15 @@ private struct GeneralTab: View {
             Section {
                 Toggle("Launch at login", isOn: $settings.launchAtLogin)
             } footer: {
-                Text("Start Xcode Cleaner automatically when you log in.")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Start Xcode Cleaner automatically when you log in.")
+                    if let error = settings.launchAtLoginError {
+                        Label(error, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
             }
 
             Section("Scheduled cleaning") {

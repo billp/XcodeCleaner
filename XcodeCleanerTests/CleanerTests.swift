@@ -15,6 +15,30 @@ final class CleanerTests: XCTestCase {
         XCTAssertEqual(try fm.contentsOfDirectory(atPath: dir.path), [])
     }
 
+    func testRemoveDirectoryContentsToleratesEntryVanishingMidDelete() throws {
+        // Simulates a concurrent writer (e.g. an active build churning
+        // ModuleCache.noindex): an entry disappears after enumeration but before
+        // removal. The clean should still empty the directory without throwing.
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        // A deep tree whose leaves we delete out from under the cleaner.
+        let nested = dir.appendingPathComponent("ModuleCache.noindex/inner")
+        try fm.createDirectory(at: nested, withIntermediateDirectories: true)
+        for i in 0..<20 {
+            try "x".write(to: nested.appendingPathComponent("\(i).tmp"), atomically: true, encoding: .utf8)
+        }
+        try "y".write(to: dir.appendingPathComponent("keep.txt"), atomically: true, encoding: .utf8)
+
+        // Race: delete the nested tree concurrently while the cleaner runs.
+        let racer = Thread { try? fm.removeItem(at: nested) }
+        racer.start()
+        try Cleaner().removeDirectoryContents(dir.path)
+
+        XCTAssertTrue(fm.fileExists(atPath: dir.path))
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: dir.path), [])
+    }
+
     func testCleanerSurfacesNonZeroStatusForSimulators() async {
         let runner = FakeCommandRunner(status: 2, stderr: Data("nope".utf8))
         let cleaner = Cleaner(runner: runner)

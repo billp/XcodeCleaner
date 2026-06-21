@@ -12,7 +12,7 @@ final class SettingsModelTests: XCTestCase {
 
     func testDefaultsAreSensible() {
         let settings = SettingsModel(userDefaults: makeSuite())
-        XCTAssertFalse(settings.launchAtLogin)
+        XCTAssertFalse(settings.launchAtLoginDesired)
         XCTAssertFalse(settings.schedulingEnabled)
         XCTAssertEqual(settings.scheduleWeekday, 6)
         XCTAssertEqual(settings.scheduleHour, 2)
@@ -38,7 +38,7 @@ final class SettingsModelTests: XCTestCase {
         settings.scheduleHour = 5
         settings.scheduleMinute = 30
         let reread = SettingsModel(userDefaults: suite)
-        XCTAssertTrue(reread.launchAtLogin)
+        XCTAssertTrue(reread.launchAtLoginDesired)
         XCTAssertTrue(reread.schedulingEnabled)
         XCTAssertEqual(reread.scheduleWeekday, 3)
         XCTAssertEqual(reread.scheduleHour, 5)

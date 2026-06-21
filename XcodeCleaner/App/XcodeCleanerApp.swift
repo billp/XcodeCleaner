@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 @main
 struct XcodeCleanerApp: App {
@@ -8,6 +9,7 @@ struct XcodeCleanerApp: App {
     private let notifier: UserNotifier
 
     init() {
+        Self.terminateOtherInstances()
         let vm = CleanerViewModel()
         let settings = SettingsModel()
         let notifier = UserNotifier()
@@ -16,6 +18,7 @@ struct XcodeCleanerApp: App {
         self.notifier = notifier
         scheduler = Scheduler(vm: vm, settings: settings, notifier: notifier)
         scheduler.start()
+        settings.reconcileLaunchAtLogin()
         Task { await requestSchedulingAuthorizationIfNeeded(settings: settings, notifier: notifier) }
     }
 
@@ -37,4 +40,16 @@ struct XcodeCleanerApp: App {
     }
 
     static let settingsWindowID = "settings"
+
+    /// Ensure a single running instance: terminate any other copies sharing this
+    /// bundle identifier so relaunching (from Xcode or the CLI) replaces the old
+    /// one instead of stacking another menu-bar icon.
+    private static func terminateOtherInstances() {
+        let me = NSRunningApplication.current
+        for app in NSWorkspace.shared.runningApplications
+        where app.bundleIdentifier == me.bundleIdentifier
+            && app.processIdentifier != me.processIdentifier {
+            app.forceTerminate()
+        }
+    }
 }

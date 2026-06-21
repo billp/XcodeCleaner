@@ -51,3 +51,5 @@ open ~/Library/Developer/Xcode/DerivedData/XcodeCleaner-*/Build/Products/Debug/X
 ```
 
 Requirements: macOS 14+, Xcode 16+ (developed on Xcode 26.3 / Swift 6.2).
+
+> **Launch at login:** `SMAppService` registers the app by its current path, so the app must live in a stable location (e.g. `/Applications`) before you enable **Launch at login** in Settings. An app launched from DerivedData will fail to auto-start because that path changes between builds. To install: copy the built `.app` to `/Applications` (or `~/Applications`), launch it from there, then enable the toggle.
