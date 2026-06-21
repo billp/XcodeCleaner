@@ -22,7 +22,7 @@ final class CleanerViewModelTests: XCTestCase {
     }
 
     func testScanFailureSetsError() async {
-        let vm = CleanerViewModel(scanner: FakeScanner(result: .failure(ScanError.process("x"))),
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .failure(ProcessError.process("x"))),
                                   cleaner: FakeCleaner(result: .success(())),
                                   availability: FakeAvailability(existsResult: true))
         let target = vm.targets[0]
@@ -43,7 +43,7 @@ final class CleanerViewModelTests: XCTestCase {
 
     func testCleanFailureSetsError() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
-                                  cleaner: FakeCleaner(result: .failure(ScanError.process("y"))),
+                                  cleaner: FakeCleaner(result: .failure(ProcessError.process("y"))),
                                   availability: FakeAvailability(existsResult: true))
         let target = vm.targets[0]
         vm.clean(target)

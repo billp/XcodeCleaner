@@ -86,7 +86,7 @@ final class CleanerTests: XCTestCase {
         }
     }
 
-    func testScanErrorShowsMessageInLocalizedDescription() {
-        XCTAssertEqual(ScanError.process("boom").localizedDescription, "boom")
+    func testProcessErrorShowsMessageInLocalizedDescription() {
+        XCTAssertEqual(ProcessError.process("boom").localizedDescription, "boom")
     }
 }

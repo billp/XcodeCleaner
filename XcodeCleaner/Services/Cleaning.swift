@@ -33,7 +33,7 @@ struct Cleaner: Cleaning {
         guard status != 0 else { return }
         let stderr = String(data: errData, encoding: .utf8) ?? ""
         if stderr.localizedCaseInsensitiveContains("no matching") { return }
-        throw ScanError.process(stderr.isEmpty ? "exit \(status)" : stderr)
+        throw ProcessError.process(stderr.isEmpty ? "exit \(status)" : stderr)
     }
 
     /// Deletes everything inside `path` but keeps `path` itself.

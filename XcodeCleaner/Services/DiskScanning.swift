@@ -42,7 +42,7 @@ struct DiskScanner: DiskScanning {
         // Parsing failed — surface the error only if du also reported failure
         if status != 0 {
             let msg = decode(errData)
-            throw ScanError.process(msg.isEmpty ? "exit \(status)" : msg)
+            throw ProcessError.process(msg.isEmpty ? "exit \(status)" : msg)
         }
         return 0
     }
@@ -51,7 +51,7 @@ struct DiskScanner: DiskScanning {
         let (status, data, errData) = try await runner.run("/usr/bin/xcrun", ["simctl", "runtime", "list", "-j"])
         if status != 0 {
             let msg = decode(errData)
-            throw ScanError.process(msg.isEmpty ? "exit \(status)" : msg)
+            throw ProcessError.process(msg.isEmpty ? "exit \(status)" : msg)
         }
         guard !data.isEmpty else { return 0 }
         return try SimctlParsing.unusedRuntimeBytes(json: data, days: days)
@@ -61,7 +61,7 @@ struct DiskScanner: DiskScanning {
         let (status, data, errData) = try await runner.run("/usr/bin/xcrun", ["simctl", "list", "devices", "-j"])
         if status != 0 {
             let msg = decode(errData)
-            throw ScanError.process(msg.isEmpty ? "exit \(status)" : msg)
+            throw ProcessError.process(msg.isEmpty ? "exit \(status)" : msg)
         }
         guard !data.isEmpty else { return 0 }
         let udids = try SimctlParsing.unavailableDeviceUDIDs(json: data)

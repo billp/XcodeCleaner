@@ -1,12 +1,5 @@
 import Foundation
 
-enum ScanError: Error, Equatable, LocalizedError {
-    case process(String)
-    var errorDescription: String? {
-        switch self { case .process(let message): return message }
-    }
-}
-
 protocol CommandRunning: Sendable {
     func run(_ launchPath: String, _ args: [String]) async throws -> (status: Int32, stdout: Data, stderr: Data)
 }
