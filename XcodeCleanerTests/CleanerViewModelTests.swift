@@ -97,4 +97,15 @@ final class CleanerViewModelTests: XCTestCase {
         await waitUntil { !vm.isBusy }       // poll until clean finishes
         XCTAssertNil(vm.statusText)
     }
+
+    func testCleanAllCleansEveryTarget() async {
+        let cleaner = FakeCleaner(result: .success(()))
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
+                                  cleaner: cleaner,
+                                  availability: FakeAvailability(existsResult: false))
+        let expected = Set(vm.targets.map(\.name))
+        vm.cleanAll()
+        await waitUntil { Set(cleaner.cleanedNames) == expected }
+        XCTAssertEqual(Set(cleaner.cleanedNames), expected)
+    }
 }

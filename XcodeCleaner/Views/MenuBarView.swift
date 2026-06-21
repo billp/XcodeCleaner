@@ -9,6 +9,8 @@ struct MenuBarView: View {
             HStack {
                 Text("Xcode Cleaner").font(.headline)
                 Spacer()
+                Button("Clean All") { vm.cleanAll() }
+                    .disabled(vm.isScheduledCleaning)
                 Button { vm.scanAll() } label: { Image(systemName: "arrow.clockwise") }
                     .buttonStyle(.borderless)
             }
@@ -34,9 +36,9 @@ struct MenuBarView: View {
                 openWindow(id: XcodeCleanerApp.settingsWindowID)
                 NSApp.activate()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .buttonStyle(MenuRowButtonStyle())
             Button("Quit") { NSApplication.shared.terminate(nil) }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .buttonStyle(MenuRowButtonStyle())
         }
         .padding(12)
         .frame(width: 320)

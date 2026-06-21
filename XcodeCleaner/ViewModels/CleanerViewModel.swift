@@ -53,6 +53,11 @@ final class CleanerViewModel {
         Task { _ = await performClean(target) }
     }
 
+    /// Cleans every target (manual "Clean All"); each runs concurrently.
+    func cleanAll() {
+        for target in targets { clean(target) }
+    }
+
     // A scheduled run and an already-in-flight manual clean can overlap; all
     // target.state writes happen on the MainActor so this is serialized and benign.
     /// Cleans one target, returning bytes reclaimed (before − after).
