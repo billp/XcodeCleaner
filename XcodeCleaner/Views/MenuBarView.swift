@@ -32,13 +32,15 @@ struct MenuBarView: View {
                     .disabled(vm.isScheduledCleaning)
             }
             Divider()
-            Button("Settings…") {
-                openWindow(id: XcodeCleanerApp.settingsWindowID)
-                NSApp.activate()
-            }
-            .buttonStyle(MenuRowButtonStyle())
-            Button("Quit") { NSApplication.shared.terminate(nil) }
+            VStack(spacing: 0) {
+                Button("Settings…") {
+                    openWindow(id: XcodeCleanerApp.settingsWindowID)
+                    NSApp.activate()
+                }
                 .buttonStyle(MenuRowButtonStyle())
+                Button("Quit") { NSApplication.shared.terminate(nil) }
+                    .buttonStyle(MenuRowButtonStyle())
+            }
         }
         .padding(12)
         .frame(width: 320)
