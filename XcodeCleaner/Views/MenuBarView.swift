@@ -36,10 +36,17 @@ struct MenuBarView: View {
             HStack(spacing: 10) {
                 Text("Clean All").font(.body)
                 Spacer()
-                Button("Clean") { vm.cleanAll() }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(vm.isScheduledCleaning)
+                if vm.isCleaningAll {
+                    ProgressView(value: Double(vm.cleanAllCompleted),
+                                 total: Double(vm.cleanAllTotal))
+                        .progressViewStyle(.linear)
+                        .frame(width: 72)
+                } else {
+                    Button("Clean") { vm.cleanAll() }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(vm.isScheduledCleaning)
+                }
             }
             .padding(.vertical, 4)
             .padding(.horizontal, 8)

@@ -9,6 +9,9 @@ final class CleanerViewModel {
     private let availability: AvailabilityChecking
 
     private(set) var isScheduledCleaning = false
+    private(set) var cleanAllTotal = 0
+    private(set) var cleanAllCompleted = 0
+    var isCleaningAll: Bool { cleanAllTotal > 0 }
 
     init(scanner: DiskScanning = DiskScanner(),
          cleaner: Cleaning = Cleaner(),
@@ -53,9 +56,23 @@ final class CleanerViewModel {
     }
 
     /// Cleans every target that has something to clean (manual "Clean All");
-    /// skips rows whose size is zero. Each runs concurrently.
+    /// skips rows whose size is zero. Each runs concurrently while the batch's
+    /// total progress (completed / total) is tracked for the UI.
     func cleanAll() {
-        for target in targets where target.sizeBytes != 0 { clean(target) }
+        let toClean = targets.filter { $0.sizeBytes != 0 }
+        guard !toClean.isEmpty else { return }
+        cleanAllCompleted = 0
+        cleanAllTotal = toClean.count
+        for target in toClean {
+            Task {
+                _ = await performClean(target)
+                cleanAllCompleted += 1
+                if cleanAllCompleted >= cleanAllTotal {
+                    cleanAllTotal = 0
+                    cleanAllCompleted = 0
+                }
+            }
+        }
     }
 
     // A scheduled run and an already-in-flight manual clean can overlap; all

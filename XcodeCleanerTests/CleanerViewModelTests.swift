@@ -111,6 +111,26 @@ final class CleanerViewModelTests: XCTestCase {
         XCTAssertEqual(Set(cleaner.cleanedNames), expected)
     }
 
+    func testCleanAllTracksBatchProgress() async {
+        let gate = BatchCleanGate()
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(1000)),
+                                  cleaner: gate,
+                                  availability: FakeAvailability(existsResult: false))
+        vm.scanAll()
+        await waitUntil { vm.targets.allSatisfy { $0.sizeBytes == 1000 } }
+        let n = vm.targets.count
+
+        vm.cleanAll()
+        await waitUntil { gate.startedCount == n }   // all cleans now in-flight
+        XCTAssertTrue(vm.isCleaningAll)
+        XCTAssertEqual(vm.cleanAllTotal, n)
+        XCTAssertEqual(vm.cleanAllCompleted, 0)
+
+        gate.releaseAll()
+        await waitUntil { !vm.isCleaningAll }         // batch finished → reset
+        XCTAssertEqual(vm.cleanAllTotal, 0)
+    }
+
     func testCleanAllSkipsZeroSizedTargets() async {
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
