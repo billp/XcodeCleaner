@@ -17,8 +17,8 @@ let cornerRadius = size * 0.2237  // macOS squircle corner radius
 // Resolve the repo root from the script's own location.
 let scriptDir = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 let repoRoot = scriptDir.deletingLastPathComponent()
-let outputURL = repoRoot
-    .appendingPathComponent("XcodeCleaner/Assets.xcassets/AppIcon.appiconset/icon_1024.png")
+let icnsURL = repoRoot
+    .appendingPathComponent("XcodeCleaner/Support/AppIcon.icns")
 
 // Create a bitmap context.
 guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
@@ -100,10 +100,43 @@ guard let pngData = bitmapRep.representation(using: .png, properties: [:]) else 
     exit(1)
 }
 
-// Ensure the output directory exists.
-let outputDir = outputURL.deletingLastPathComponent()
-try? FileManager.default.createDirectory(at: outputDir,
-                                         withIntermediateDirectories: true)
-try pngData.write(to: outputURL)
+// Write the 1024×1024 PNG to a temp .iconset folder, then generate all
+// required sizes and convert to .icns via `iconutil`.
+let iconsetDir = FileManager.default.temporaryDirectory
+    .appendingPathComponent("AppIcon.iconset")
+try? FileManager.default.removeItem(at: iconsetDir)
+try FileManager.default.createDirectory(at: iconsetDir, withIntermediateDirectories: true)
 
-print("✓ Wrote \(Int(size))×\(Int(size)) icon to \(outputURL.path)")
+let sizes: [(Int, String)] = [
+    (16, "16x16"), (32, "16x16@2x"),
+    (32, "32x32"), (64, "32x32@2x"),
+    (128, "128x128"), (256, "128x128@2x"),
+    (256, "256x256"), (512, "256x256@2x"),
+    (512, "512x512"), (1024, "512x512@2x"),
+]
+for (px, name) in sizes {
+    let resized = NSImage(size: NSSize(width: px, height: px))
+    resized.lockFocus()
+    NSImage(cgImage: cgImage, size: NSSize(width: px, height: px))
+        .draw(in: NSRect(x: 0, y: 0, width: px, height: px))
+    resized.unlockFocus()
+    if let tiff = resized.tiffRepresentation,
+       let rep = NSBitmapImageRep(data: tiff),
+       let png = rep.representation(using: .png, properties: [:]) {
+        try png.write(to: iconsetDir.appendingPathComponent("icon_\(name).png"))
+    }
+}
+
+let iconutil = Process()
+iconutil.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
+iconutil.arguments = ["-c", "icns", iconsetDir.path, "-o", icnsURL.path]
+try iconutil.run()
+iconutil.waitUntilExit()
+try? FileManager.default.removeItem(at: iconsetDir)
+
+if iconutil.terminationStatus == 0 {
+    print("✓ Wrote .icns to \(icnsURL.path)")
+} else {
+    FileHandle.standardError.write("iconutil failed with status \(iconutil.terminationStatus)\n".data(using: .utf8)!)
+    exit(1)
+}
