@@ -9,7 +9,6 @@ final class CleanerViewModel {
     private let availability: AvailabilityChecking
 
     private(set) var isScheduledCleaning = false
-    private(set) var activeCleanCount = 0
 
     init(scanner: DiskScanning = DiskScanner(),
          cleaner: Cleaning = Cleaner(),
@@ -62,8 +61,6 @@ final class CleanerViewModel {
     // target.state writes happen on the MainActor so this is serialized and benign.
     /// Cleans one target, returning bytes reclaimed (before − after).
     private func performClean(_ target: sending CleanupTarget) async -> Int64 {
-        activeCleanCount += 1
-        defer { activeCleanCount -= 1 }
         var before = target.sizeBytes
         if before == nil, case .success(let b) = await scanner.size(of: target) {
             before = b
@@ -104,13 +101,10 @@ final class CleanerViewModel {
         return ByteCountFormatter.string(fromByteCount: total, countStyle: .file)
     }
 
-    var isManualCleaning: Bool { activeCleanCount > 0 }
-
-    var isBusy: Bool { isScheduledCleaning || isManualCleaning }
-
+    /// Status banner / menu bar pulse is shown only for a scheduled run. A manual
+    /// per-row clean shows just the spinner in that row (via TargetState.cleaning),
+    /// exactly like scanning — no global banner.
     var statusText: String? {
-        if isScheduledCleaning { return "Scheduled clean in progress…" }
-        if isManualCleaning { return "Cleaning…" }
-        return nil
+        isScheduledCleaning ? "Scheduled clean in progress…" : nil
     }
 }

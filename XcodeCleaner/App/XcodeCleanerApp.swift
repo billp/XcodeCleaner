@@ -24,7 +24,7 @@ struct XcodeCleanerApp: App {
             MenuBarView(vm: vm)
         } label: {
             Image(systemName: "sparkles")
-                .symbolEffect(.variableColor.iterative, isActive: vm.isBusy)
+                .symbolEffect(.variableColor.iterative, isActive: vm.isScheduledCleaning)
         }
         .menuBarExtraStyle(.window)
 

@@ -9,8 +9,6 @@ struct MenuBarView: View {
             HStack {
                 Text("Xcode Cleaner").font(.headline)
                 Spacer()
-                Button("Clean All") { vm.cleanAll() }
-                    .disabled(vm.isScheduledCleaning)
                 Button { vm.scanAll() } label: { Image(systemName: "arrow.clockwise") }
                     .buttonStyle(.borderless)
             }
@@ -34,6 +32,10 @@ struct MenuBarView: View {
                     .disabled(vm.isScheduledCleaning)
                     .padding(.horizontal, 8)
             }
+            Divider()
+            Button("Clean All") { vm.cleanAll() }
+                .buttonStyle(MenuRowButtonStyle())
+                .disabled(vm.isScheduledCleaning)
             Divider()
             VStack(spacing: 0) {
                 Button("Settings…") {
