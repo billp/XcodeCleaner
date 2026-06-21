@@ -52,9 +52,10 @@ final class CleanerViewModel {
         Task { _ = await performClean(target) }
     }
 
-    /// Cleans every target (manual "Clean All"); each runs concurrently.
+    /// Cleans every target that has something to clean (manual "Clean All");
+    /// skips rows whose size is zero. Each runs concurrently.
     func cleanAll() {
-        for target in targets { clean(target) }
+        for target in targets where target.sizeBytes != 0 { clean(target) }
     }
 
     // A scheduled run and an already-in-flight manual clean can overlap; all

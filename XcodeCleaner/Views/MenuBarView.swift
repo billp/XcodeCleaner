@@ -33,13 +33,15 @@ struct MenuBarView: View {
                     .padding(.horizontal, 8)
             }
             Divider()
-            HStack {
+            HStack(spacing: 10) {
+                Text("Clean All").font(.body)
                 Spacer()
-                Button("Clean All") { vm.cleanAll() }
+                Button("Clean") { vm.cleanAll() }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .disabled(vm.isScheduledCleaning)
             }
+            .padding(.vertical, 4)
             .padding(.horizontal, 8)
             Divider()
             VStack(spacing: 0) {
