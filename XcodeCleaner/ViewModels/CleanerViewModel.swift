@@ -95,4 +95,16 @@ final class CleanerViewModel {
         let total = targets.compactMap(\.sizeBytes).reduce(0, +)
         return ByteCountFormatter.string(fromByteCount: total, countStyle: .file)
     }
+
+    var isManualCleaning: Bool {
+        targets.contains { if case .cleaning = $0.state { return true } else { return false } }
+    }
+
+    var isBusy: Bool { isScheduledCleaning || isManualCleaning }
+
+    var statusText: String? {
+        if isScheduledCleaning { return "Scheduled clean in progress…" }
+        if isManualCleaning { return "Cleaning…" }
+        return nil
+    }
 }

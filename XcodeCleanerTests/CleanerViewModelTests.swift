@@ -78,4 +78,22 @@ final class CleanerViewModelTests: XCTestCase {
         XCTAssertEqual(result.reclaimed, 1000)
         XCTAssertFalse(vm.isScheduledCleaning)
     }
+
+    func testBusyStateReflectsManualCleaning() {
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: false))
+        XCTAssertFalse(vm.isManualCleaning)
+        XCTAssertFalse(vm.isBusy)
+        XCTAssertNil(vm.statusText)
+
+        vm.targets[0].state = .cleaning
+        XCTAssertTrue(vm.isManualCleaning)
+        XCTAssertTrue(vm.isBusy)
+        XCTAssertEqual(vm.statusText, "Cleaning…")
+
+        vm.targets[0].state = .cleaned(0)
+        XCTAssertFalse(vm.isBusy)
+        XCTAssertNil(vm.statusText)
+    }
 }
