@@ -142,4 +142,36 @@ final class CleanerViewModelTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 100_000_000)  // let any (wrong) cleans run
         XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
     }
+
+    func testScanAllPreservesCleaningTarget() async {
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(123)),
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: false))
+        let cleaning = vm.targets[0]
+        let idle = vm.targets[1]
+        cleaning.state = .cleaning           // simulate an in-flight clean
+
+        vm.scanAll()                         // mimics the onAppear auto-rescan
+
+        // The busy row keeps its cleaning state…
+        XCTAssertEqual(cleaning.state, .cleaning)
+        // …while an idle row still rescans.
+        await waitUntil { idle.sizeBytes == 123 }
+        XCTAssertEqual(idle.sizeBytes, 123)
+        XCTAssertEqual(cleaning.state, .cleaning)
+    }
+
+    func testScanSkipsAlreadyScanningTarget() async {
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(123)),
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: false))
+        let target = vm.targets[0]
+        target.state = .scanning
+
+        vm.scan(target)          // should be a no-op, not restart a scan
+
+        // Give any (wrong) scan Task a chance to run, then confirm state unchanged.
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(target.state, .scanning)
+    }
 }
