@@ -74,3 +74,7 @@ xcodebuild -project XcodeCleaner.xcodeproj -scheme XcodeCleaner test
 # Quick build without signing
 xcodebuild -project XcodeCleaner.xcodeproj -scheme XcodeCleaner build CODE_SIGNING_ALLOWED=NO
 ```
+
+## License
+
+Released under the [MIT License](LICENSE).
