@@ -53,6 +53,7 @@ struct MenuBarView: View {
             Divider()
             VStack(spacing: 0) {
                 Button("Settings…") {
+                    NSApp.keyWindow?.close()   // dismiss the menu bar popover
                     openWindow(id: XcodeCleanerApp.settingsWindowID)
                     NSApp.activate()
                 }
