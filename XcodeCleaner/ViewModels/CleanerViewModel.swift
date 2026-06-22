@@ -41,6 +41,10 @@ final class CleanerViewModel {
     }
 
     func scan(_ target: CleanupTarget) {
+        switch target.state {
+        case .scanning, .cleaning: return   // don't disturb in-flight work
+        default: break
+        }
         target.state = .scanning
         Task {
             let result = await scanner.size(of: target.kind)
