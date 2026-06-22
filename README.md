@@ -11,6 +11,17 @@
 
 Click the ✨ sparkles icon in your menu bar to see how much space each Xcode cache is using, then hit **Clean** on the ones you want to clear. Want it hands-off? Turn on weekly auto-clean and forget about it.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshot-menu.png" alt="Menu bar dropdown showing reclaimable space per cache" width="340">
+</p>
+
+<p align="center">
+  <img src="docs/screenshot-general.png" alt="Settings — General tab" width="420">
+  <img src="docs/screenshot-schedule.png" alt="Settings — Schedule tab" width="420">
+</p>
+
 ## What it cleans
 
 | Cache | What it frees up |
