@@ -56,7 +56,7 @@ Open **Settings…** from the menu bar dropdown:
 - **General** — turn on **Launch at login** so the app is always running to fire scheduled cleans.
 - **Schedule** — enable scheduled cleaning, pick a day and time, and check the caches you want cleaned automatically each week.
 
-XcodeCleaner won't interrupt your work: if a build is running (`xcodebuild`, `swift`, `clang`, etc.) when a scheduled clean is due, it waits an hour and tries again — for up to 24 hours — before skipping until next week.
+XcodeCleaner won't interrupt your work: if a build is running (`xcodebuild`, `swift`, `clang`, etc.) when a scheduled clean is due, it waits an hour and tries again — for up to 24 hours — before skipping until next week. If your Mac was asleep when the schedule fired, XcodeCleaner catches up and runs the missed clean as soon as you wake it.
 
 > Launch at login requires the app to live in a stable location like `/Applications`, which `scripts/install.sh` handles for you.
 

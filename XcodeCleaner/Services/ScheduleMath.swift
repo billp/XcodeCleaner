@@ -37,4 +37,19 @@ enum ScheduleMath {
     static func giveUpTime(originalFire: Date) -> Date {
         originalFire.addingTimeInterval(24 * 60 * 60)
     }
+
+    /// The most recent scheduled slot at or before `now`.
+    /// Returns `nil` if the calendar cannot find a match (extremely unlikely).
+    static func lastScheduledSlot(
+        before now: Date, weekday: Int, hour: Int, minute: Int
+    ) -> Date? {
+        let cal = Calendar.current
+        let comps = DateComponents(hour: hour, minute: minute, weekday: weekday)
+        return cal.nextDate(
+            after: now.addingTimeInterval(1),
+            matching: comps,
+            matchingPolicy: .nextTime,
+            direction: .backward
+        )
+    }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 @MainActor
 @Observable
@@ -8,6 +9,7 @@ final class SchedulerViewModel {
     private let runner: CommandRunning
     private let notifier: Notifying
     private var timer: Timer?
+    private var wakeObserver: NSObjectProtocol?
 
     var lastFired: Date?
     var pendingFire: Date?
@@ -25,11 +27,22 @@ final class SchedulerViewModel {
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.tick(now: Date()) }
         }
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.checkMissedScheduleOnWake() }
+        }
     }
 
     func stop() {
         timer?.invalidate()
         timer = nil
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+            self.wakeObserver = nil
+        }
     }
 
     func tick(now: Date) async {
@@ -47,6 +60,28 @@ final class SchedulerViewModel {
             return
         }
 
+        await attemptClean(now: now)
+    }
+
+    /// On wake, check if a scheduled clean was missed while the Mac was asleep.
+    /// If the most recent scheduled slot has passed and hasn't been fired yet,
+    /// run the clean immediately (with the usual build-process guard).
+    func checkMissedScheduleOnWake() async {
+        guard settings.schedulingEnabled else { return }
+        let now = Date()
+        guard let slot = ScheduleMath.lastScheduledSlot(
+            before: now,
+            weekday: settings.scheduleWeekday,
+            hour: settings.scheduleHour,
+            minute: settings.scheduleMinute
+        ) else { return }
+        if let lastFired, lastFired >= slot { return }
+        await attemptClean(now: now)
+    }
+
+    /// Checks for running build processes and either fires the clean or
+    /// postpones by one hour (up to 24 hours from the original fire time).
+    private func attemptClean(now: Date) async {
         let psOutput: String
         do {
             let (_, data, _) = try await runner.run("/bin/ps", ["-axo", "comm="])

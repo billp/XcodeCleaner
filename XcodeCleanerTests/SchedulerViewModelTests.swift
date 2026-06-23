@@ -162,4 +162,80 @@ final class SchedulerViewModelTests: XCTestCase {
         XCTAssertNil(scheduler.pendingFire)
         XCTAssertNil(scheduler.originalFire)
     }
+
+    // MARK: - Wake catch-up
+
+    func testCheckMissedScheduleFiresAfterSlotPassed() async {
+        let settings = SettingsViewModel(userDefaults: makeSuite())
+        settings.schedulingEnabled = true
+        settings.enabledTargetNames = ["Xcode DerivedData"]
+        let cleaner = FakeCleaner(result: .success(()))
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
+                                  cleaner: cleaner,
+                                  availability: FakeAvailability(existsResult: true))
+        let scheduler = SchedulerViewModel(
+            vm: vm, settings: settings,
+            runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)),
+            notifier: FakeNotifier()
+        )
+        // Now is 5 hours after the scheduled slot — Mac was asleep during the slot.
+        let now = makeFireDate().addingTimeInterval(5 * 3600)
+        await scheduler.checkMissedScheduleOnWake()
+        await waitUntil { cleaner.cleanedKinds.count == 1 }
+        XCTAssertEqual(cleaner.cleanedKinds, [.directory(path: "~/Library/Developer/Xcode/DerivedData")])
+        XCTAssertNotNil(scheduler.lastFired)
+    }
+
+    func testCheckMissedScheduleDoesNotFireIfAlreadyRan() async {
+        let settings = SettingsViewModel(userDefaults: makeSuite())
+        settings.schedulingEnabled = true
+        settings.enabledTargetNames = ["Xcode DerivedData"]
+        let cleaner = FakeCleaner(result: .success(()))
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
+                                  cleaner: cleaner,
+                                  availability: FakeAvailability(existsResult: true))
+        let scheduler = SchedulerViewModel(
+            vm: vm, settings: settings,
+            runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)),
+            notifier: FakeNotifier()
+        )
+        // Simulate that the scheduled clean already ran this week.
+        scheduler.lastFired = makeFireDate()
+        let now = makeFireDate().addingTimeInterval(5 * 3600)
+        await scheduler.checkMissedScheduleOnWake()
+        XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
+    }
+
+    func testCheckMissedScheduleDoesNothingWhenSchedulingDisabled() async {
+        let settings = SettingsViewModel(userDefaults: makeSuite())
+        settings.schedulingEnabled = false
+        let cleaner = FakeCleaner(result: .success(()))
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
+                                  cleaner: cleaner,
+                                  availability: FakeAvailability(existsResult: true))
+        let scheduler = SchedulerViewModel(
+            vm: vm, settings: settings,
+            runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8))
+        )
+        await scheduler.checkMissedScheduleOnWake()
+        XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
+    }
+
+    func testCheckMissedSchedulePostponesWhenBuildRunning() async {
+        let settings = SettingsViewModel(userDefaults: makeSuite())
+        settings.schedulingEnabled = true
+        settings.enabledTargetNames = ["Xcode DerivedData"]
+        let cleaner = FakeCleaner(result: .success(()))
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
+                                  cleaner: cleaner,
+                                  availability: FakeAvailability(existsResult: true))
+        let scheduler = SchedulerViewModel(
+            vm: vm, settings: settings,
+            runner: FakeCommandRunner(status: 0, stdout: Data("xcodebuild\n".utf8))
+        )
+        let now = makeFireDate().addingTimeInterval(5 * 3600)
+        await scheduler.checkMissedScheduleOnWake()
+        XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
+        XCTAssertNotNil(scheduler.pendingFire)
+    }
 }

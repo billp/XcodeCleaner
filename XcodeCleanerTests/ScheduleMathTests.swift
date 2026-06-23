@@ -91,4 +91,40 @@ final class ScheduleMathTests: XCTestCase {
         let result = ScheduleMath.giveUpTime(originalFire: original)
         XCTAssertEqual(result.timeIntervalSince(original), 24 * 60 * 60, accuracy: 1)
     }
+
+    func testLastScheduledSlotReturnsPreviousSlot() {
+        // Schedule: Friday 02:00.  Now is Friday 10:30 → slot should be today 02:00.
+        var slotComps = DateComponents()
+        slotComps.year = 2026; slotComps.month = 6; slotComps.day = 26
+        slotComps.hour = 2; slotComps.minute = 0; slotComps.second = 0
+        slotComps.timeZone = TimeZone.current
+        let expectedSlot = cal.date(from: slotComps)!
+
+        var nowComps = DateComponents()
+        nowComps.year = 2026; nowComps.month = 6; nowComps.day = 26
+        nowComps.hour = 10; nowComps.minute = 30; nowComps.second = 0
+        nowComps.timeZone = TimeZone.current
+        let now = cal.date(from: nowComps)!
+
+        let result = ScheduleMath.lastScheduledSlot(before: now, weekday: 6, hour: 2, minute: 0)
+        XCTAssertEqual(result, expectedSlot)
+    }
+
+    func testLastScheduledSlotRollsBackToPreviousWeek() {
+        // Schedule: Friday 02:00.  Now is Wednesday → slot should be last Friday 02:00.
+        var slotComps = DateComponents()
+        slotComps.year = 2026; slotComps.month = 6; slotComps.day = 19
+        slotComps.hour = 2; slotComps.minute = 0; slotComps.second = 0
+        slotComps.timeZone = TimeZone.current
+        let expectedSlot = cal.date(from: slotComps)!
+
+        var nowComps = DateComponents()
+        nowComps.year = 2026; nowComps.month = 6; nowComps.day = 24  // Wednesday
+        nowComps.hour = 15; nowComps.minute = 0; nowComps.second = 0
+        nowComps.timeZone = TimeZone.current
+        let now = cal.date(from: nowComps)!
+
+        let result = ScheduleMath.lastScheduledSlot(before: now, weekday: 6, hour: 2, minute: 0)
+        XCTAssertEqual(result, expectedSlot)
+    }
 }
