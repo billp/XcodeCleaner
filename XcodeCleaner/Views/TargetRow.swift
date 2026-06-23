@@ -6,6 +6,10 @@ struct TargetRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
+            Image(systemName: target.kind.systemImage)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(target.name).font(.body)
                 if case .error(let msg) = target.state {
