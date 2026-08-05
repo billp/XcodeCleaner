@@ -6,6 +6,8 @@ final class CleanupTarget: Identifiable {
     let name: String
     let kind: CleanupKind
     var state: TargetState = .idle
+    /// When the current size value was last computed — drives cache freshness.
+    var scannedAt: Date?
 
     init(name: String, kind: CleanupKind) {
         self.name = name

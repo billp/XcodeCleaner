@@ -8,6 +8,9 @@ final class CleanerViewModel {
     private let cleaner: Cleaning
     private let availability: AvailabilityChecking
     private let fullDiskAccess: FullDiskAccessChecking
+    /// How long a computed size stays fresh before an auto-scan recomputes it.
+    /// The top ↻ button bypasses this to force a full rescan.
+    private let cacheTTL: TimeInterval
 
     private(set) var isScheduledCleaning = false
     private(set) var cleanAllTotal = 0
@@ -21,11 +24,13 @@ final class CleanerViewModel {
     init(scanner: DiskScanning = DiskScanner(),
          cleaner: Cleaning = Cleaner(),
          availability: AvailabilityChecking = AvailabilityChecker(),
-         fullDiskAccess: FullDiskAccessChecking = FullDiskAccessChecker()) {
+         fullDiskAccess: FullDiskAccessChecking = FullDiskAccessChecker(),
+         cacheTTL: TimeInterval = 600) {
         self.scanner = scanner
         self.cleaner = cleaner
         self.availability = availability
         self.fullDiskAccess = fullDiskAccess
+        self.cacheTTL = cacheTTL
         hasFullDiskAccess = fullDiskAccess.isGranted()
         var built: [CleanupTarget] = []
         let xbmcpPath = "~/Library/Developer/XcodeBuildMCP/workspaces"
@@ -46,25 +51,37 @@ final class CleanerViewModel {
         targets = built
     }
 
-    func scanAll() {
-        for t in targets { scan(t) }
+    /// Scans every target. `force: true` (the top ↻ button) recomputes all of
+    /// them; otherwise targets with a size younger than `cacheTTL` are skipped.
+    func scanAll(force: Bool = false) {
+        for t in targets { scan(t, force: force) }
     }
 
     func refreshFullDiskAccess() {
         hasFullDiskAccess = fullDiskAccess.isGranted()
     }
 
-    func scan(_ target: CleanupTarget) {
+    /// A target's cached size is still fresh if it has a value stamped within `cacheTTL`.
+    private func isFresh(_ target: CleanupTarget) -> Bool {
+        guard target.sizeBytes != nil, let at = target.scannedAt else { return false }
+        return Date().timeIntervalSince(at) < cacheTTL
+    }
+
+    func scan(_ target: CleanupTarget, force: Bool = false) {
         switch target.state {
         case .scanning, .cleaning: return   // don't disturb in-flight work
         default: break
         }
+        if !force && isFresh(target) { return }   // serve the cached size
         target.state = .scanning
         Task {
             let result = await scanner.size(of: target.kind)
             switch result {
-            case .success(let bytes): target.state = .scanned(bytes: bytes)
-            case .failure(let err): target.state = .error(message: err.localizedDescription)
+            case .success(let bytes):
+                target.state = .scanned(bytes: bytes)
+                target.scannedAt = Date()
+            case .failure(let err):
+                target.state = .error(message: err.localizedDescription)
             }
         }
     }
@@ -108,6 +125,7 @@ final class CleanerViewModel {
             switch await scanner.size(of: target.kind) {
             case .success(let after):
                 target.state = .cleaned(bytes: after)
+                target.scannedAt = Date()
                 return max(0, (before ?? after) - after)
             case .failure(let err):
                 target.state = .error(message: err.localizedDescription)

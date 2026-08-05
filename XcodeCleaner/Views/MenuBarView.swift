@@ -9,8 +9,9 @@ struct MenuBarView: View {
             HStack {
                 Text("Xcode Cleaner").font(.headline)
                 Spacer()
-                Button { cleaner.scanAll() } label: { Image(systemName: "arrow.clockwise") }
+                Button { cleaner.scanAll(force: true) } label: { Image(systemName: "arrow.clockwise") }
                     .buttonStyle(.borderless)
+                    .help("Rescan everything now")
             }
             .padding(.horizontal, 8)
             Text("Reclaimable: \(cleaner.totalText)")

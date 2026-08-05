@@ -36,6 +36,55 @@ final class CleanerViewModelTests: XCTestCase {
         XCTAssertTrue(granted.hasFullDiskAccess)
     }
 
+    func testCacheServesSizeWithinTTL() async {
+        let scanner = FakeScanner(result: .success(500))
+        let vm = CleanerViewModel(scanner: scanner,
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: true),
+                                  fullDiskAccess: FakeFullDiskAccess(granted: true))
+        let target = vm.targets[0]
+        vm.scan(target)
+        await waitUntil { if case .scanned = target.state { return true }; return false }
+        XCTAssertEqual(scanner.callCount, 1)
+
+        // Value is fresh → a second auto-scan is skipped, no new scanner call.
+        vm.scan(target)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(scanner.callCount, 1)
+        XCTAssertEqual(target.sizeBytes, 500)
+    }
+
+    func testForceRescanBypassesCache() async {
+        let scanner = FakeScanner(results: [.success(500), .success(700)])
+        let vm = CleanerViewModel(scanner: scanner,
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: true),
+                                  fullDiskAccess: FakeFullDiskAccess(granted: true))
+        let target = vm.targets[0]
+        vm.scan(target)
+        await waitUntil { target.sizeBytes == 500 }
+        vm.scan(target, force: true)
+        await waitUntil { target.sizeBytes == 700 }
+        XCTAssertEqual(scanner.callCount, 2)
+    }
+
+    func testExpiredCacheTriggersRescan() async {
+        let scanner = FakeScanner(results: [.success(500), .success(900)])
+        let vm = CleanerViewModel(scanner: scanner,
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: true),
+                                  fullDiskAccess: FakeFullDiskAccess(granted: true),
+                                  cacheTTL: 600)
+        let target = vm.targets[0]
+        vm.scan(target)
+        await waitUntil { target.sizeBytes == 500 }
+        // Age the cached value past the TTL, then an auto-scan recomputes it.
+        target.scannedAt = Date().addingTimeInterval(-601)
+        vm.scan(target)
+        await waitUntil { target.sizeBytes == 900 }
+        XCTAssertEqual(scanner.callCount, 2)
+    }
+
     func testScanFailureSetsError() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .failure(ProcessError.process("x"))),
                                   cleaner: FakeCleaner(result: .success(())),
