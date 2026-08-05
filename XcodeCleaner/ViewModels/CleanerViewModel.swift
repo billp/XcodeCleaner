@@ -7,18 +7,26 @@ final class CleanerViewModel {
     private let scanner: DiskScanning
     private let cleaner: Cleaning
     private let availability: AvailabilityChecking
+    private let fullDiskAccess: FullDiskAccessChecking
 
     private(set) var isScheduledCleaning = false
     private(set) var cleanAllTotal = 0
     private(set) var cleanAllCompleted = 0
     var isCleaningAll: Bool { cleanAllTotal > 0 }
 
+    /// Whether the app can scan `~` without tripping macOS privacy prompts.
+    /// Re-checked whenever the menu opens so it clears once the user grants access.
+    private(set) var hasFullDiskAccess = true
+
     init(scanner: DiskScanning = DiskScanner(),
          cleaner: Cleaning = Cleaner(),
-         availability: AvailabilityChecking = AvailabilityChecker()) {
+         availability: AvailabilityChecking = AvailabilityChecker(),
+         fullDiskAccess: FullDiskAccessChecking = FullDiskAccessChecker()) {
         self.scanner = scanner
         self.cleaner = cleaner
         self.availability = availability
+        self.fullDiskAccess = fullDiskAccess
+        hasFullDiskAccess = fullDiskAccess.isGranted()
         var built: [CleanupTarget] = []
         let xbmcpPath = "~/Library/Developer/XcodeBuildMCP/workspaces"
         if availability.exists((xbmcpPath as NSString).expandingTildeInPath) {
@@ -40,6 +48,10 @@ final class CleanerViewModel {
 
     func scanAll() {
         for t in targets { scan(t) }
+    }
+
+    func refreshFullDiskAccess() {
+        hasFullDiskAccess = fullDiskAccess.isGranted()
     }
 
     func scan(_ target: CleanupTarget) {

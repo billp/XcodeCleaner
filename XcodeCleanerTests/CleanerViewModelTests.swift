@@ -21,6 +21,21 @@ final class CleanerViewModelTests: XCTestCase {
         XCTAssertEqual(target.sizeBytes, 123)
     }
 
+    func testFullDiskAccessReflectsChecker() {
+        let denied = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
+                                      cleaner: FakeCleaner(result: .success(())),
+                                      availability: FakeAvailability(existsResult: true),
+                                      fullDiskAccess: FakeFullDiskAccess(granted: false))
+        XCTAssertFalse(denied.hasFullDiskAccess)
+
+        let granted = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
+                                       cleaner: FakeCleaner(result: .success(())),
+                                       availability: FakeAvailability(existsResult: true),
+                                       fullDiskAccess: FakeFullDiskAccess(granted: true))
+        granted.refreshFullDiskAccess()
+        XCTAssertTrue(granted.hasFullDiskAccess)
+    }
+
     func testScanFailureSetsError() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .failure(ProcessError.process("x"))),
                                   cleaner: FakeCleaner(result: .success(())),
