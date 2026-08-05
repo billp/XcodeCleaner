@@ -180,7 +180,7 @@ final class SchedulerViewModelTests: XCTestCase {
         )
         // Now is 5 hours after the scheduled slot — Mac was asleep during the slot.
         let now = makeFireDate().addingTimeInterval(5 * 3600)
-        await scheduler.checkMissedScheduleOnWake()
+        await scheduler.checkMissedScheduleOnWake(now: now)
         await waitUntil { cleaner.cleanedKinds.count == 1 }
         XCTAssertEqual(cleaner.cleanedKinds, [.directory(path: "~/Library/Developer/Xcode/DerivedData")])
         XCTAssertNotNil(scheduler.lastFired)
@@ -202,7 +202,7 @@ final class SchedulerViewModelTests: XCTestCase {
         // Simulate that the scheduled clean already ran this week.
         scheduler.lastFired = makeFireDate()
         let now = makeFireDate().addingTimeInterval(5 * 3600)
-        await scheduler.checkMissedScheduleOnWake()
+        await scheduler.checkMissedScheduleOnWake(now: now)
         XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
     }
 
@@ -234,7 +234,7 @@ final class SchedulerViewModelTests: XCTestCase {
             runner: FakeCommandRunner(status: 0, stdout: Data("xcodebuild\n".utf8))
         )
         let now = makeFireDate().addingTimeInterval(5 * 3600)
-        await scheduler.checkMissedScheduleOnWake()
+        await scheduler.checkMissedScheduleOnWake(now: now)
         XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
         XCTAssertNotNil(scheduler.pendingFire)
     }

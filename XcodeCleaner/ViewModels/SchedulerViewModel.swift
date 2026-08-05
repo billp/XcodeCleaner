@@ -32,7 +32,7 @@ final class SchedulerViewModel {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in await self?.checkMissedScheduleOnWake() }
+            Task { @MainActor in await self?.checkMissedScheduleOnWake(now: Date()) }
         }
     }
 
@@ -66,9 +66,11 @@ final class SchedulerViewModel {
     /// On wake, check if a scheduled clean was missed while the Mac was asleep.
     /// If the most recent scheduled slot has passed and hasn't been fired yet,
     /// run the clean immediately (with the usual build-process guard).
-    func checkMissedScheduleOnWake() async {
+    ///
+    /// `now` is injectable (defaulting to the wall clock) so this stays testable
+    /// against a fixed reference date, exactly like `tick(now:)`.
+    func checkMissedScheduleOnWake(now: Date = Date()) async {
         guard settings.schedulingEnabled else { return }
-        let now = Date()
         guard let slot = ScheduleMath.lastScheduledSlot(
             before: now,
             weekday: settings.scheduleWeekday,

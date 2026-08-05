@@ -18,6 +18,8 @@ struct DiskScanner: DiskScanning {
             switch kind {
             case .directory(let path):
                 return .success(try await directoryBytes(expand(path)))
+            case .buildFolders(let root):
+                return .success(try await buildFoldersBytes(expand(root)))
             case .unavailableSimulators:
                 return .success(try await unavailableSimulatorBytes())
             case .unusedRuntimes(let days):
@@ -45,6 +47,18 @@ struct DiskScanner: DiskScanning {
             throw ProcessError.process(msg.isEmpty ? "exit \(status)" : msg)
         }
         return 0
+    }
+
+    /// Sum of every `.build` directory beneath `root`. Each is measured with the
+    /// same `du -sk` path as a plain directory target; a `.build` that vanishes
+    /// mid-scan (an active build) simply contributes 0.
+    private func buildFoldersBytes(_ root: String) async throws -> Int64 {
+        let paths = try await BuildFolders.paths(root: root, runner: runner)
+        var total: Int64 = 0
+        for path in paths {
+            total += try await directoryBytes(path)
+        }
+        return total
     }
 
     private func unusedRuntimeBytes(days: Int) async throws -> Int64 {

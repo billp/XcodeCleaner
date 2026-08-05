@@ -89,4 +89,77 @@ final class CleanerTests: XCTestCase {
     func testProcessErrorShowsMessageInLocalizedDescription() {
         XCTAssertEqual(ProcessError.process("boom").localizedDescription, "boom")
     }
+
+    // MARK: - .build folders
+
+    func testBuildFoldersScannerSumsEveryFoundDirectory() async throws {
+        // find enumerates two real .build dirs; du reports 10 KB and 15 KB.
+        let fm = FileManager.default
+        let base = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let a = base.appendingPathComponent("ProjA/.build")
+        let b = base.appendingPathComponent("ProjB/.build")
+        try fm.createDirectory(at: a, withIntermediateDirectories: true)
+        try fm.createDirectory(at: b, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: base) }
+
+        let runner = FakeCommandRunner(responses: [
+            .init(status: 0, stdout: Data("\(a.path)\u{0}\(b.path)\u{0}".utf8), stderr: Data()),
+            .init(status: 0, stdout: Data("10\t\(a.path)".utf8), stderr: Data()),
+            .init(status: 0, stdout: Data("15\t\(b.path)".utf8), stderr: Data())
+        ])
+        let result = await DiskScanner(runner: runner).size(of: .buildFolders(root: base.path))
+        guard case .success(let bytes) = result else { return XCTFail("expected success") }
+        XCTAssertEqual(bytes, (10 + 15) * 1024)
+    }
+
+    func testCleanBuildFoldersRemovesBuildDirButKeepsSiblings() async throws {
+        let fm = FileManager.default
+        let base = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let build = base.appendingPathComponent("ProjA/.build")
+        let sources = base.appendingPathComponent("ProjA/Sources")
+        try fm.createDirectory(at: build, withIntermediateDirectories: true)
+        try fm.createDirectory(at: sources, withIntermediateDirectories: true)
+        try "x".write(to: build.appendingPathComponent("f.o"), atomically: true, encoding: .utf8)
+        defer { try? fm.removeItem(at: base) }
+
+        // find is called twice: enumerate, then verify none remain.
+        let runner = FakeCommandRunner(responses: [
+            .init(status: 0, stdout: Data("\(build.path)\u{0}".utf8), stderr: Data()),
+            .init(status: 0, stdout: Data(), stderr: Data())
+        ])
+        let result = await Cleaner(runner: runner).clean(.buildFolders(root: base.path))
+        if case .failure = result { XCTFail("expected success") }
+        XCTAssertFalse(fm.fileExists(atPath: build.path), ".build should be removed entirely")
+        XCTAssertTrue(fm.fileExists(atPath: sources.path), "sibling Sources must be untouched")
+    }
+
+    func testBuildFoldersScannerReturnsZeroWhenRootMissing() async {
+        let runner = FakeCommandRunner(status: 0)
+        let missing = "/tmp/\(UUID().uuidString)/does-not-exist"
+        let result = await DiskScanner(runner: runner).size(of: .buildFolders(root: missing))
+        guard case .success(let bytes) = result else { return XCTFail("expected success") }
+        XCTAssertEqual(bytes, 0)
+        XCTAssertTrue(runner.calls.isEmpty, "a missing root should short-circuit before running find")
+    }
+
+    func testBuildFolderScanPrunesLibrarySubtree() async throws {
+        // The scan must prune <root>/Library so it never walks into other apps'
+        // sandboxed containers, which trips macOS's "access data from other
+        // apps" privacy prompt.
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try fm.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: root) }
+
+        let runner = FakeCommandRunner(status: 0, stdout: Data())
+        _ = try await BuildFolders.paths(root: root.path, runner: runner)
+
+        let call = runner.calls.first
+        XCTAssertEqual(call?.launchPath, "/usr/bin/find")
+        XCTAssertEqual(call?.args.first, root.path)
+        XCTAssertTrue(
+            call?.args.contains("\(root.path)/Library") ?? false,
+            "scan must prune the Library subtree"
+        )
+    }
 }

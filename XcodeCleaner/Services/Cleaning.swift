@@ -16,6 +16,8 @@ struct Cleaner: Cleaning {
             switch kind {
             case .directory(let path):
                 try removeDirectoryContents((path as NSString).expandingTildeInPath)
+            case .buildFolders(let root):
+                try await removeBuildFolders((root as NSString).expandingTildeInPath)
             case .unavailableSimulators:
                 try await runSimctl(["simctl", "delete", "unavailable"])
             case .unusedRuntimes(let days):
@@ -34,6 +36,34 @@ struct Cleaner: Cleaning {
         let stderr = String(data: errData, encoding: .utf8) ?? ""
         if stderr.localizedCaseInsensitiveContains("no matching") { return }
         throw ProcessError.process(stderr.isEmpty ? "exit \(status)" : stderr)
+    }
+
+    /// Removes every SwiftPM `.build` directory found beneath `root`, in full
+    /// (unlike `removeDirectoryContents`, the `.build` folder itself goes too —
+    /// SwiftPM recreates it on the next build).
+    ///
+    /// Tolerant of an active build churning a `.build` mid-delete: a removal is
+    /// retried, and an entry that has already vanished counts as done. The
+    /// authoritative check is a re-scan afterwards — an error surfaces only if a
+    /// `.build` genuinely remains.
+    func removeBuildFolders(_ root: String) async throws {
+        let fm = FileManager.default
+        var lastError: Error?
+        for path in try await BuildFolders.paths(root: root, runner: runner) {
+            for _ in 0..<3 {
+                guard fm.fileExists(atPath: path) else { break }  // gone (lost a race) → done
+                do {
+                    try fm.removeItem(atPath: path)
+                    break
+                } catch {
+                    lastError = error  // a nested file likely vanished; retry the entry
+                }
+            }
+        }
+        let remaining = try await BuildFolders.paths(root: root, runner: runner)
+        if !remaining.isEmpty, let lastError {
+            throw lastError
+        }
     }
 
     /// Deletes everything inside `path` but keeps `path` itself.

@@ -29,6 +29,8 @@ final class CleanerViewModel {
                                    kind: .directory(path: "~/Library/Developer/Xcode/DerivedData")))
         built.append(CleanupTarget(name: "SwiftPM cache",
                                    kind: .directory(path: "~/Library/Caches/org.swift.swiftpm")))
+        built.append(CleanupTarget(name: "SwiftPM .build folders",
+                                   kind: .buildFolders(root: "~")))
         built.append(CleanupTarget(name: "iOS DeviceSupport",
                                    kind: .directory(path: "~/Library/Developer/Xcode/iOS DeviceSupport")))
         built.append(CleanupTarget(name: "Unused simulators", kind: .unavailableSimulators))
