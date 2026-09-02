@@ -45,7 +45,7 @@ scripts/install.sh
 
 This builds a signed copy, installs it to `/Applications/XcodeCleaner.app`, and launches it. You may be asked for your administrator password.
 
-> **First time?** If the build fails with a signing error, open `XcodeCleaner.xcodeproj` in Xcode once, select the **XcodeCleaner** target → **Signing & Capabilities**, and pick your team under **Team** (a free Apple ID works). Then re-run the script. Or skip signing entirely with `scripts/install.sh --signing=NO`.
+> **First time?** The script signs the app with your Apple Development certificate. If you don't have one, open `XcodeCleaner.xcodeproj` in Xcode once, select the **XcodeCleaner** target → **Signing & Capabilities**, and pick your team under **Team** (a free Apple ID works). Without a certificate the script falls back to ad-hoc signing automatically — everything still works, except that macOS drops the app's **Full Disk Access** grant on every reinstall (the permission is tied to the code signature), so you'd have to re-add it each time.
 
 Once installed, the ✨ icon appears in your menu bar. Click it to get started.
 

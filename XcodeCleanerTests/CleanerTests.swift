@@ -61,15 +61,56 @@ final class CleanerTests: XCTestCase {
         """
         let runner = FakeCommandRunner(responses: [
             .init(status: 0, stdout: Data(list.utf8), stderr: Data()),
-            .init(status: 0, stdout: Data(), stderr: Data())
+            .init(status: 0, stdout: Data(), stderr: Data()),
+            .init(status: 0, stdout: Data(), stderr: Data()),
+            .init(status: 0, stdout: Data("{}".utf8), stderr: Data())
         ])
-        let result = await Cleaner(runner: runner).clean(.unusedRuntimes(days: 30))
+        let result = await Self.fastCleaner(runner).clean(.unusedRuntimes(days: 30))
         if case .failure = result { XCTFail("expected success") }
         XCTAssertEqual(runner.calls.map(\.args), [
             ["simctl", "runtime", "list", "-j"],
             ["simctl", "runtime", "delete", "B"],
-            ["simctl", "runtime", "delete", "C"]
+            ["simctl", "runtime", "delete", "C"],
+            ["simctl", "runtime", "list", "-j"]   // settle check
         ])
+    }
+
+    /// `simctl runtime delete` returns before the mobile asset is actually
+    /// purged, so the runtime keeps showing up (at full size) in `runtime list`
+    /// for a moment. The clean must not return while that's still the case, or
+    /// the caller re-scans and the row shows the size it just freed.
+    func testCleanRuntimesWaitsUntilSimctlStopsListingTheDeletedRuntime() async {
+        let stillThere = """
+        { "A": { "identifier": "A", "sizeBytes": 8000000000 } }
+        """
+        let runner = FakeCommandRunner(responses: [
+            .init(status: 0, stdout: Data(stillThere.utf8), stderr: Data()),  // list
+            .init(status: 0, stdout: Data(), stderr: Data()),                 // delete A
+            .init(status: 0, stdout: Data(stillThere.utf8), stderr: Data()),  // still listed
+            .init(status: 0, stdout: Data("{}".utf8), stderr: Data())         // now gone
+        ])
+        let result = await Self.fastCleaner(runner).clean(.unusedRuntimes(days: 30))
+        if case .failure = result { XCTFail("expected success") }
+        XCTAssertEqual(runner.calls.count, 4, "should poll until the runtime is gone")
+    }
+
+    func testCleanRuntimesGivesUpWaitingRatherThanHanging() async {
+        // The runtime never disappears from the list. The delete itself worked,
+        // so this stays a success — the wait is best-effort.
+        let stuck = """
+        { "A": { "identifier": "A", "sizeBytes": 8000000000 } }
+        """
+        let runner = FakeCommandRunner(status: 0, stdout: Data(stuck.utf8))
+        let cleaner = Cleaner(runner: runner,
+                              runtimeSettleTimeout: .milliseconds(60),
+                              runtimeSettlePoll: .milliseconds(10))
+        if case .failure = await cleaner.clean(.unusedRuntimes(days: 30)) {
+            XCTFail("a delete that worked shouldn't fail just because the list lags")
+        }
+    }
+
+    private static func fastCleaner(_ runner: CommandRunning) -> Cleaner {
+        Cleaner(runner: runner, runtimeSettleTimeout: .seconds(2), runtimeSettlePoll: .milliseconds(5))
     }
 
     func testCleanRuntimesDoesNothingWhenNoneAreUnused() async {
@@ -110,9 +151,10 @@ final class CleanerTests: XCTestCase {
         """
         let runner = FakeCommandRunner(responses: [
             .init(status: 0, stdout: Data(list.utf8), stderr: Data()),
-            .init(status: 2, stdout: Data(), stderr: Data("No matching images found to delete".utf8))
+            .init(status: 2, stdout: Data(), stderr: Data("No matching images found to delete".utf8)),
+            .init(status: 0, stdout: Data("{}".utf8), stderr: Data())
         ])
-        if case .failure = await Cleaner(runner: runner).clean(.unusedRuntimes(days: 30)) {
+        if case .failure = await Self.fastCleaner(runner).clean(.unusedRuntimes(days: 30)) {
             XCTFail("‘no matching images’ should be treated as success")
         }
     }

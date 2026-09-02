@@ -6,9 +6,17 @@ protocol Cleaning: Sendable {
 
 struct Cleaner: Cleaning {
     let runner: CommandRunning
+    /// How long to keep waiting for simctl to stop listing a runtime we deleted,
+    /// and how often to re-check. See `waitForRuntimesToDisappear`.
+    let runtimeSettleTimeout: Duration
+    let runtimeSettlePoll: Duration
 
-    init(runner: CommandRunning = CommandRunner()) {
+    init(runner: CommandRunning = CommandRunner(),
+         runtimeSettleTimeout: Duration = .seconds(20),
+         runtimeSettlePoll: Duration = .milliseconds(500)) {
         self.runner = runner
+        self.runtimeSettleTimeout = runtimeSettleTimeout
+        self.runtimeSettlePoll = runtimeSettlePoll
     }
 
     func clean(_ kind: CleanupKind) async -> Result<Void, Error> {
@@ -35,14 +43,39 @@ struct Cleaner: Cleaning {
     /// by the scan and then silently left on disk. Resolving the identifiers here
     /// keeps the clean and the size shown in the UI in agreement.
     private func deleteUnusedRuntimes(days: Int) async throws {
+        let unused = try await listUnusedRuntimes(days: days)
+        guard !unused.isEmpty else { return }
+        for runtime in unused {
+            try await runSimctl(["simctl", "runtime", "delete", runtime.identifier])
+        }
+        await waitForRuntimesToDisappear(days: days)
+    }
+
+    private func listUnusedRuntimes(days: Int) async throws -> [SimctlParsing.UnusedRuntime] {
         let (status, data, errData) = try await runner.run("/usr/bin/xcrun", ["simctl", "runtime", "list", "-j"])
         if status != 0 {
             let msg = String(data: errData, encoding: .utf8) ?? ""
             throw ProcessError.process(msg.isEmpty ? "exit \(status)" : msg)
         }
-        guard !data.isEmpty else { return }
-        for runtime in try SimctlParsing.unusedRuntimes(json: data, days: days) {
-            try await runSimctl(["simctl", "runtime", "delete", runtime.identifier])
+        guard !data.isEmpty else { return [] }
+        return try SimctlParsing.unusedRuntimes(json: data, days: days)
+    }
+
+    /// `simctl runtime delete` returns once the purge is scheduled — the mobile
+    /// asset behind a cryptex-backed runtime is reclaimed a moment later, and
+    /// until it is, `simctl runtime list` keeps reporting the runtime at full
+    /// size. The caller re-scans as soon as we return, so returning early leaves
+    /// the row showing the size we just freed (and the scan cache then pins that
+    /// stale number). Wait for the list to agree before reporting success.
+    ///
+    /// Best-effort: on timeout we return anyway rather than fail a clean that
+    /// did work — the next scan will catch up.
+    private func waitForRuntimesToDisappear(days: Int) async {
+        let deadline = ContinuousClock.now + runtimeSettleTimeout
+        while ContinuousClock.now < deadline {
+            guard let remaining = try? await listUnusedRuntimes(days: days) else { return }
+            if remaining.isEmpty { return }
+            guard (try? await Task.sleep(for: runtimeSettlePoll)) != nil else { return }
         }
     }
 
