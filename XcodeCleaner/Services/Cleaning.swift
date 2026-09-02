@@ -21,15 +21,34 @@ struct Cleaner: Cleaning {
             case .unavailableSimulators:
                 try await runSimctl(["simctl", "delete", "unavailable"])
             case .unusedRuntimes(let days):
-                try await runSimctl(["simctl", "runtime", "delete", "--notUsedSinceDays", String(days)])
+                try await deleteUnusedRuntimes(days: days)
             }
             return .success(())
         } catch { return .failure(error) }
     }
 
+    /// Deletes each runtime the scan counted as unused, one identifier at a time.
+    ///
+    /// We deliberately don't use `simctl runtime delete --notUsedSinceDays`: it
+    /// skips runtimes that have no `lastUsedAt` at all (downloaded but never
+    /// booted), so a multi-GB never-used runtime would be reported as reclaimable
+    /// by the scan and then silently left on disk. Resolving the identifiers here
+    /// keeps the clean and the size shown in the UI in agreement.
+    private func deleteUnusedRuntimes(days: Int) async throws {
+        let (status, data, errData) = try await runner.run("/usr/bin/xcrun", ["simctl", "runtime", "list", "-j"])
+        if status != 0 {
+            let msg = String(data: errData, encoding: .utf8) ?? ""
+            throw ProcessError.process(msg.isEmpty ? "exit \(status)" : msg)
+        }
+        guard !data.isEmpty else { return }
+        for runtime in try SimctlParsing.unusedRuntimes(json: data, days: days) {
+            try await runSimctl(["simctl", "runtime", "delete", runtime.identifier])
+        }
+    }
+
     /// Runs `xcrun` with the given args. A non-zero exit whose stderr says nothing
-    /// matched (e.g. "No matching images found to delete" when no runtimes are old
-    /// enough) is treated as success — there was simply nothing to clean.
+    /// matched (e.g. "No matching images found to delete" when the runtime is
+    /// already gone) is treated as success — there was simply nothing to clean.
     private func runSimctl(_ args: [String]) async throws {
         let (status, _, errData) = try await runner.run("/usr/bin/xcrun", args)
         guard status != 0 else { return }

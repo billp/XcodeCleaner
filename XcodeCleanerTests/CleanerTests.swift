@@ -48,13 +48,49 @@ final class CleanerTests: XCTestCase {
         }
     }
 
-    func testCleanerPassesRuntimeDeleteArgs() async {
-        let runner = FakeCommandRunner(status: 0)
-        let cleaner = Cleaner(runner: runner)
-        let target = CleanupTarget(name: "rt", kind: .unusedRuntimes(days: 30))
-        _ = await cleaner.clean(target.kind)
-        XCTAssertEqual(runner.calls.first?.args,
-                       ["simctl", "runtime", "delete", "--notUsedSinceDays", "30"])
+    /// The runtime clean resolves identifiers itself rather than delegating to
+    /// `--notUsedSinceDays`, which ignores never-used runtimes. "B" here is a
+    /// downloaded-but-never-booted runtime — exactly the case the flag misses.
+    func testCleanerDeletesEachUnusedRuntimeByIdentifier() async {
+        let list = """
+        {
+          "A": { "identifier": "A", "sizeBytes": 100, "lastUsedAt": "\(Self.iso(daysAgo: 1))" },
+          "B": { "identifier": "B", "sizeBytes": 200 },
+          "C": { "identifier": "C", "sizeBytes": 300, "lastUsedAt": "\(Self.iso(daysAgo: 90))" }
+        }
+        """
+        let runner = FakeCommandRunner(responses: [
+            .init(status: 0, stdout: Data(list.utf8), stderr: Data()),
+            .init(status: 0, stdout: Data(), stderr: Data())
+        ])
+        let result = await Cleaner(runner: runner).clean(.unusedRuntimes(days: 30))
+        if case .failure = result { XCTFail("expected success") }
+        XCTAssertEqual(runner.calls.map(\.args), [
+            ["simctl", "runtime", "list", "-j"],
+            ["simctl", "runtime", "delete", "B"],
+            ["simctl", "runtime", "delete", "C"]
+        ])
+    }
+
+    func testCleanRuntimesDoesNothingWhenNoneAreUnused() async {
+        let list = """
+        { "A": { "identifier": "A", "sizeBytes": 100, "lastUsedAt": "\(Self.iso(daysAgo: 1))" } }
+        """
+        let runner = FakeCommandRunner(status: 0, stdout: Data(list.utf8))
+        let result = await Cleaner(runner: runner).clean(.unusedRuntimes(days: 30))
+        if case .failure = result { XCTFail("expected success") }
+        XCTAssertEqual(runner.calls.count, 1, "only the list call should run")
+    }
+
+    func testCleanRuntimesSurfacesListFailure() async {
+        let runner = FakeCommandRunner(status: 1, stderr: Data("boom".utf8))
+        if case .success = await Cleaner(runner: runner).clean(.unusedRuntimes(days: 30)) {
+            XCTFail("a failing runtime list should surface as failure")
+        }
+    }
+
+    private static func iso(daysAgo: Int) -> String {
+        ISO8601DateFormatter().string(from: Date().addingTimeInterval(-Double(daysAgo) * 86_400))
     }
 
     func testScannerSurfacesNonZeroStatusForRuntimes() async {
@@ -67,21 +103,29 @@ final class CleanerTests: XCTestCase {
     }
 
     func testCleanRuntimesTreatsNoMatchingAsSuccess() async {
-        // `simctl runtime delete --notUsedSinceDays N` exits 2 with this message
-        // when nothing is old enough — that's "nothing to clean", not a failure.
-        let runner = FakeCommandRunner(status: 2, stderr: Data("No matching images found to delete".utf8))
-        let cleaner = Cleaner(runner: runner)
-        let target = CleanupTarget(name: "rt", kind: .unusedRuntimes(days: 30))
-        if case .failure = await cleaner.clean(target.kind) {
+        // `simctl runtime delete <id>` exits 2 with this message when the runtime
+        // is already gone — that's "nothing to clean", not a failure.
+        let list = """
+        { "A": { "identifier": "A", "sizeBytes": 100 } }
+        """
+        let runner = FakeCommandRunner(responses: [
+            .init(status: 0, stdout: Data(list.utf8), stderr: Data()),
+            .init(status: 2, stdout: Data(), stderr: Data("No matching images found to delete".utf8))
+        ])
+        if case .failure = await Cleaner(runner: runner).clean(.unusedRuntimes(days: 30)) {
             XCTFail("‘no matching images’ should be treated as success")
         }
     }
 
     func testCleanRuntimesSurfacesRealError() async {
-        let runner = FakeCommandRunner(status: 1, stderr: Data("some real failure".utf8))
-        let cleaner = Cleaner(runner: runner)
-        let target = CleanupTarget(name: "rt", kind: .unusedRuntimes(days: 30))
-        if case .success = await cleaner.clean(target.kind) {
+        let list = """
+        { "A": { "identifier": "A", "sizeBytes": 100 } }
+        """
+        let runner = FakeCommandRunner(responses: [
+            .init(status: 0, stdout: Data(list.utf8), stderr: Data()),
+            .init(status: 1, stdout: Data(), stderr: Data("some real failure".utf8))
+        ])
+        if case .success = await Cleaner(runner: runner).clean(.unusedRuntimes(days: 30)) {
             XCTFail("a real error should surface as failure")
         }
     }

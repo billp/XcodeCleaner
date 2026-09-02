@@ -16,6 +16,21 @@ final class SimctlParsingTests: XCTestCase {
         XCTAssertEqual(bytes, 8_000_000_000)
     }
 
+    func testUnusedRuntimesIncludesNeverUsedAndSkipsUndeletable() throws {
+        // A never-used runtime has no `lastUsedAt` at all — it must still be
+        // listed, since that is precisely what `simctl --notUsedSinceDays` misses.
+        let json = """
+        {
+          "A": { "identifier": "A", "sizeBytes": 8000000000 },
+          "B": { "identifier": "B", "sizeBytes": 7000000000, "deletable": false },
+          "C": { "identifier": "C", "sizeBytes": 300, "lastUsedAt": "2026-06-20T12:00:00Z" }
+        }
+        """.data(using: .utf8)!
+        let now = ISO8601DateFormatter().date(from: "2026-06-20T13:00:00Z")!
+        let unused = try SimctlParsing.unusedRuntimes(json: json, days: 30, now: now)
+        XCTAssertEqual(unused, [.init(identifier: "A", sizeBytes: 8_000_000_000)])
+    }
+
     func testUnavailableDeviceUDIDs() throws {
         let json = """
         { "devices": {
