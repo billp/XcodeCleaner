@@ -6,6 +6,8 @@ enum CleanupKind: Hashable, Sendable {
     case buildFolders(root: String)
     case unavailableSimulators
     case unusedRuntimes(days: Int)
+    /// Leftover parallel-test simulator clones untouched for `days` days.
+    case staleTestClones(days: Int)
 
     var systemImage: String {
         switch self {
@@ -21,6 +23,8 @@ enum CleanupKind: Hashable, Sendable {
             return "iphone.slash"
         case .unusedRuntimes:
             return "memorychip"
+        case .staleTestClones:
+            return "square.on.square.dashed"
         }
     }
 }

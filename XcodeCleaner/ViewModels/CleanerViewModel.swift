@@ -48,6 +48,10 @@ final class CleanerViewModel {
                                    kind: .directory(path: "~/Library/Developer/Xcode/iOS DeviceSupport")))
         built.append(CleanupTarget(name: "Unused simulators", kind: .unavailableSimulators))
         built.append(CleanupTarget(name: "Unused simulator runtimes", kind: .unusedRuntimes(days: 30)))
+        if availability.exists(TestClones.defaultSetPath) {
+            built.append(CleanupTarget(name: "Leftover test simulators",
+                                       kind: .staleTestClones(days: 1)))
+        }
         targets = built
     }
 

@@ -24,6 +24,8 @@ struct DiskScanner: DiskScanning {
                 return .success(try await unavailableSimulatorBytes())
             case .unusedRuntimes(let days):
                 return .success(try await unusedRuntimeBytes(days: days))
+            case .staleTestClones(let days):
+                return .success(try await staleTestCloneBytes(days: days))
             }
         } catch { return .failure(error) }
     }
@@ -69,6 +71,17 @@ struct DiskScanner: DiskScanning {
         }
         guard !data.isEmpty else { return 0 }
         return try SimctlParsing.unusedRuntimeBytes(json: data, days: days)
+    }
+
+    /// Measured with `du -sk` per clone directory rather than simctl's
+    /// `dataPathSize`, which counts only the clone's `data` subdirectory —
+    /// the delete reclaims the whole directory, so that's what we report.
+    private func staleTestCloneBytes(days: Int) async throws -> Int64 {
+        var total: Int64 = 0
+        for clone in try await TestClones.stale(days: days, runner: runner) {
+            total += try await directoryBytes(TestClones.directoryPath(of: clone))
+        }
+        return total
     }
 
     private func unavailableSimulatorBytes() async throws -> Int64 {

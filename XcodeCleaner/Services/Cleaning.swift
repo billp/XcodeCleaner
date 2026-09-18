@@ -30,9 +30,21 @@ struct Cleaner: Cleaning {
                 try await runSimctl(["simctl", "delete", "unavailable"])
             case .unusedRuntimes(let days):
                 try await deleteUnusedRuntimes(days: days)
+            case .staleTestClones(let days):
+                try await deleteStaleTestClones(days: days)
             }
             return .success(())
         } catch { return .failure(error) }
+    }
+
+    /// Deletes each leftover test clone through simctl rather than removing its
+    /// directory, so the device is unregistered from the test device set too —
+    /// a stray directory with a live registration would keep being reported.
+    private func deleteStaleTestClones(days: Int) async throws {
+        let setPath = TestClones.defaultSetPath
+        for clone in try await TestClones.stale(days: days, runner: runner) {
+            try await runSimctl(["simctl", "--set", setPath, "delete", clone.udid])
+        }
     }
 
     /// Deletes each runtime the scan counted as unused, one identifier at a time.

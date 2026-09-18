@@ -27,6 +27,7 @@ Click the ✨ sparkles icon in your menu bar to see how much space each Xcode ca
 | XcodeBuildMCP workspaces | XcodeBuildMCP working files |
 | Unused simulators | Simulators marked unavailable |
 | Unused simulator runtimes | Runtimes unused for 30+ days |
+| Leftover test simulators | Parallel-test clones left behind by crashed or cancelled test runs |
 
 > ⚠️ **Clean removes files immediately** — there's no undo. These are all safe-to-delete caches that Xcode regenerates as needed, but anything in progress (like a fresh build's DerivedData) will be gone.
 
