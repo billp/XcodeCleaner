@@ -18,6 +18,16 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(settings.scheduleHour, 2)
         XCTAssertEqual(settings.scheduleMinute, 0)
         XCTAssertTrue(settings.enabledTargetNames.isEmpty)
+        XCTAssertFalse(settings.lowDiskCleanEnabled)
+        XCTAssertNil(settings.lastLowDiskClean)
+    }
+
+    func testRequestsAuthWhenOnlyLowDiskCleanEnabled() async {
+        let settings = SettingsViewModel(userDefaults: makeSuite())
+        let notifier = FakeNotifier()
+        settings.lowDiskCleanEnabled = true
+        await settings.requestSchedulingAuthorizationIfNeeded(notifier: notifier)
+        XCTAssertEqual(notifier.authorizationRequests, 1)
     }
 
     func testEnabledTargetNamesRoundTrips() {

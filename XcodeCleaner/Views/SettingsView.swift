@@ -16,9 +16,9 @@ struct SettingsView: View {
             GeneralTab(settings: settings)
                 .tabItem { Label("General", systemImage: "gearshape") }
             ScheduleTab(cleaner: cleaner, settings: settings, notifier: notifier)
-                .tabItem { Label("Schedule", systemImage: "clock") }
+                .tabItem { Label("Auto-Clean", systemImage: "clock") }
         }
-        .frame(width: 480, height: 380)
+        .frame(width: 480, height: 460)
     }
 }
 
@@ -53,12 +53,18 @@ private struct GeneralTab: View {
                     }
                 } else {
                     LabeledContent("Status", value: "Disabled")
-                    Text("Turn on scheduling in the Schedule tab.")
+                    Text("Turn on scheduling in the Auto-Clean tab.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 LabeledContent("Last scheduled clean",
                                value: settings.lastRunText ?? "Never")
+            }
+
+            Section("Low disk space cleaning") {
+                LabeledContent("Status", value: settings.lowDiskCleanEnabled ? "Enabled" : "Disabled")
+                LabeledContent("Last low-disk clean",
+                               value: settings.lastLowDiskCleanText ?? "Never")
             }
         }
         .formStyle(.grouped)
@@ -71,6 +77,7 @@ private struct ScheduleTab: View {
     let notifier: Notifying
 
     private let weekdaySymbols = Calendar.current.weekdaySymbols
+    private let thresholdText = LowDiskMath.threshold.formatted(.percent.precision(.fractionLength(0)))
 
     private var hourMinuteBinding: Binding<Date> {
         Binding(
@@ -119,12 +126,25 @@ private struct ScheduleTab: View {
             }
             .disabled(!settings.schedulingEnabled)
 
+            Section {
+                Toggle("Clean when free disk space is below \(thresholdText)",
+                       isOn: $settings.lowDiskCleanEnabled)
+                    .onChange(of: settings.lowDiskCleanEnabled) { _, isOn in
+                        if isOn { Task { await notifier.requestAuthorization() } }
+                    }
+            } header: {
+                Text("Low disk space")
+            } footer: {
+                Text("Checked every minute. Waits while a build is running and runs at most once every "
+                     + "\(Int(LowDiskMath.cooldown / 3600)) hours.")
+            }
+
             Section("Targets to auto-clean") {
                 ForEach(cleaner.targets) { target in
                     Toggle(target.name, isOn: bindingFor(target.name))
                 }
             }
-            .disabled(!settings.schedulingEnabled)
+            .disabled(!settings.schedulingEnabled && !settings.lowDiskCleanEnabled)
         }
         .formStyle(.grouped)
     }

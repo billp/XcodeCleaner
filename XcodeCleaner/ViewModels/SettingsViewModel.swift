@@ -56,11 +56,12 @@ final class SettingsViewModel {
         withMutation(keyPath: \.launchAtLogin) { }
     }
 
-    /// Requests notification authorization at launch when scheduling is already
-    /// enabled. The Schedule toggle's onChange only fires on a fresh toggle, so a
-    /// persisted-enabled schedule would otherwise never (re)request authorization.
+    /// Requests notification authorization at launch when an automatic clean
+    /// (scheduled or low-disk) is already enabled. The toggles' onChange only fires
+    /// on a fresh toggle, so a persisted-enabled setting would otherwise never
+    /// (re)request authorization.
     func requestSchedulingAuthorizationIfNeeded(notifier: Notifying) async {
-        guard schedulingEnabled else { return }
+        guard schedulingEnabled || lowDiskCleanEnabled else { return }
         await notifier.requestAuthorization()
     }
 
@@ -72,6 +73,33 @@ final class SettingsViewModel {
         set {
             withMutation(keyPath: \.schedulingEnabled) {
                 defaults.set(newValue, forKey: "xclean.schedulingEnabled")
+            }
+        }
+    }
+
+    /// Automatically clean the selected targets when free disk space drops
+    /// below `LowDiskMath.threshold`.
+    var lowDiskCleanEnabled: Bool {
+        get {
+            access(keyPath: \.lowDiskCleanEnabled)
+            return defaults.bool(forKey: "xclean.lowDiskCleanEnabled")
+        }
+        set {
+            withMutation(keyPath: \.lowDiskCleanEnabled) {
+                defaults.set(newValue, forKey: "xclean.lowDiskCleanEnabled")
+            }
+        }
+    }
+
+    /// When the last low-disk clean started; drives the re-run cooldown.
+    var lastLowDiskClean: Date? {
+        get {
+            access(keyPath: \.lastLowDiskClean)
+            return defaults.object(forKey: "xclean.lastLowDiskClean") as? Date
+        }
+        set {
+            withMutation(keyPath: \.lastLowDiskClean) {
+                defaults.set(newValue, forKey: "xclean.lastLowDiskClean")
             }
         }
     }
@@ -150,6 +178,11 @@ final class SettingsViewModel {
     var lastRunText: String? {
         access(keyPath: \.lastScheduledClean)
         guard let date = lastScheduledClean else { return nil }
+        return Self.runFormatter.string(from: date)
+    }
+
+    var lastLowDiskCleanText: String? {
+        guard let date = lastLowDiskClean else { return nil }
         return Self.runFormatter.string(from: date)
     }
 

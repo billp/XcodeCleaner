@@ -4,16 +4,6 @@ import XCTest
 final class ScheduleMathTests: XCTestCase {
     private let cal = Calendar(identifier: .gregorian)
 
-    func testIsBuildProcessMatchesKnownNames() {
-        XCTAssertTrue(ScheduleMath.isBuildProcess("xcodebuild"))
-        XCTAssertTrue(ScheduleMath.isBuildProcess("/usr/bin/xcodebuild"))
-        XCTAssertTrue(ScheduleMath.isBuildProcess("swift-frontend"))
-        XCTAssertTrue(ScheduleMath.isBuildProcess("clang"))
-        XCTAssertTrue(ScheduleMath.isBuildProcess("clang++"))
-        XCTAssertFalse(ScheduleMath.isBuildProcess("Photos"))
-        XCTAssertFalse(ScheduleMath.isBuildProcess(""))
-    }
-
     func testShouldFireMatchesExactSlot() {
         // Friday June 26 2026, 02:00:30 local
         var comps = DateComponents()

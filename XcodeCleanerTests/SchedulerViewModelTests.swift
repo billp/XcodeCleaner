@@ -36,7 +36,7 @@ final class SchedulerViewModelTests: XCTestCase {
                                   cleaner: cleaner,
                                   availability: FakeAvailability(existsResult: true))
         let scheduler = SchedulerViewModel(vm: vm, settings: settings,
-                                  runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)))
+                                  buildDetector: FakeBuildDetector.idle)
         await scheduler.tick(now: makeFireDate())
         XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
     }
@@ -49,8 +49,8 @@ final class SchedulerViewModelTests: XCTestCase {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
                                   availability: FakeAvailability(existsResult: true))
-        let runner = FakeCommandRunner(status: 0, stdout: Data("xcodebuild\n".utf8))
-        let scheduler = SchedulerViewModel(vm: vm, settings: settings, runner: runner)
+        let detector = FakeBuildDetector.busy
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings, buildDetector: detector)
         let fire = makeFireDate()
         await scheduler.tick(now: fire)
         XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
@@ -65,8 +65,8 @@ final class SchedulerViewModelTests: XCTestCase {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
                                   availability: FakeAvailability(existsResult: true))
-        let runner = FakeCommandRunner(status: 0, stdout: Data("bash\ngoogle-chrome\n".utf8))
-        let scheduler = SchedulerViewModel(vm: vm, settings: settings, runner: runner, notifier: FakeNotifier())
+        let detector = FakeBuildDetector.idle
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings, buildDetector: detector, notifier: FakeNotifier())
         let fire = makeFireDate()
         await scheduler.tick(now: fire)
         await waitUntil { cleaner.cleanedKinds.count == 1 }
@@ -83,8 +83,8 @@ final class SchedulerViewModelTests: XCTestCase {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
                                   availability: FakeAvailability(existsResult: true))
-        let runner = FakeCommandRunner(status: 0, stdout: Data("xcodebuild\n".utf8))
-        let scheduler = SchedulerViewModel(vm: vm, settings: settings, runner: runner)
+        let detector = FakeBuildDetector.busy
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings, buildDetector: detector)
         let original = makeFireDate()
         scheduler.originalFire = original
         scheduler.pendingFire = original
@@ -105,7 +105,7 @@ final class SchedulerViewModelTests: XCTestCase {
                                   availability: FakeAvailability(existsResult: false))
         let notifier = FakeNotifier()
         let scheduler = SchedulerViewModel(vm: vm, settings: settings,
-                                  runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)),
+                                  buildDetector: FakeBuildDetector.idle,
                                   notifier: notifier)
         let fire = makeFireDate()
         await scheduler.tick(now: fire)
@@ -123,7 +123,7 @@ final class SchedulerViewModelTests: XCTestCase {
                                   availability: FakeAvailability(existsResult: false))
         let notifier = FakeNotifier()
         let scheduler = SchedulerViewModel(vm: vm, settings: settings,
-                                  runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)),
+                                  buildDetector: FakeBuildDetector.idle,
                                   notifier: notifier)
         let fire = makeFireDate()
         await scheduler.tick(now: fire)
@@ -139,12 +139,9 @@ final class SchedulerViewModelTests: XCTestCase {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
                                   availability: FakeAvailability(existsResult: true))
-        // First ps call returns a build process; second returns no build process.
-        let runner = FakeCommandRunner(responses: [
-            .init(status: 0, stdout: Data("xcodebuild\n".utf8), stderr: Data()),
-            .init(status: 0, stdout: Data("bash\n".utf8), stderr: Data()),
-        ])
-        let scheduler = SchedulerViewModel(vm: vm, settings: settings, runner: runner)
+        // First check finds a running build; the second finds none.
+        let detector = FakeBuildDetector(responses: [[FakeBuildDetector.sampleBuild], []])
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings, buildDetector: detector)
         let fire = makeFireDate()
 
         // First tick: build is running → postpone.
@@ -175,7 +172,7 @@ final class SchedulerViewModelTests: XCTestCase {
                                   availability: FakeAvailability(existsResult: true))
         let scheduler = SchedulerViewModel(
             vm: vm, settings: settings,
-            runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)),
+            buildDetector: FakeBuildDetector.idle,
             notifier: FakeNotifier()
         )
         // Now is 5 hours after the scheduled slot — Mac was asleep during the slot.
@@ -196,7 +193,7 @@ final class SchedulerViewModelTests: XCTestCase {
                                   availability: FakeAvailability(existsResult: true))
         let scheduler = SchedulerViewModel(
             vm: vm, settings: settings,
-            runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8)),
+            buildDetector: FakeBuildDetector.idle,
             notifier: FakeNotifier()
         )
         // Simulate that the scheduled clean already ran this week.
@@ -215,7 +212,7 @@ final class SchedulerViewModelTests: XCTestCase {
                                   availability: FakeAvailability(existsResult: true))
         let scheduler = SchedulerViewModel(
             vm: vm, settings: settings,
-            runner: FakeCommandRunner(status: 0, stdout: Data("bash\n".utf8))
+            buildDetector: FakeBuildDetector.idle
         )
         await scheduler.checkMissedScheduleOnWake()
         XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
@@ -231,7 +228,7 @@ final class SchedulerViewModelTests: XCTestCase {
                                   availability: FakeAvailability(existsResult: true))
         let scheduler = SchedulerViewModel(
             vm: vm, settings: settings,
-            runner: FakeCommandRunner(status: 0, stdout: Data("xcodebuild\n".utf8))
+            buildDetector: FakeBuildDetector.busy
         )
         let now = makeFireDate().addingTimeInterval(5 * 3600)
         await scheduler.checkMissedScheduleOnWake(now: now)

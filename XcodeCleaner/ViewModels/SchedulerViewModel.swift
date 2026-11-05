@@ -6,7 +6,7 @@ import AppKit
 final class SchedulerViewModel {
     private let vm: CleanerViewModel
     private let settings: SettingsViewModel
-    private let runner: CommandRunning
+    private let buildDetector: BuildDetecting
     private let notifier: Notifying
     private var timer: Timer?
     private var wakeObserver: NSObjectProtocol?
@@ -16,10 +16,10 @@ final class SchedulerViewModel {
     var originalFire: Date?
 
     init(vm: CleanerViewModel, settings: SettingsViewModel,
-         runner: CommandRunning = CommandRunner(), notifier: Notifying = UserNotifier()) {
+         buildDetector: BuildDetecting = BuildDetector(), notifier: Notifying = UserNotifier()) {
         self.vm = vm
         self.settings = settings
-        self.runner = runner
+        self.buildDetector = buildDetector
         self.notifier = notifier
     }
 
@@ -46,6 +46,29 @@ final class SchedulerViewModel {
     }
 
     func tick(now: Date) async {
+        await checkLowDiskSpace(now: now)
+        await checkSchedule(now: now)
+    }
+
+    /// When enabled and free space is below `LowDiskMath.threshold`, cleans the
+    /// selected targets (at most once per `LowDiskMath.cooldown`). If a build is
+    /// running it simply waits for a later tick rather than cleaning mid-build.
+    func checkLowDiskSpace(now: Date) async {
+        guard settings.lowDiskCleanEnabled, !vm.isScheduledCleaning else { return }
+        guard let space = vm.refreshDiskSpace(),
+              LowDiskMath.shouldClean(space: space, lastRun: settings.lastLowDiskClean, now: now)
+        else { return }
+        guard await isBuildRunning() == false else { return }
+
+        settings.lastLowDiskClean = now
+        let result = await vm.runScheduledClean(named: settings.enabledTargetNames, trigger: .lowDisk)
+        if result.count > 0 {
+            await notifier.notifyCleanFinished(targetCount: result.count, reclaimedBytes: result.reclaimed,
+                                               trigger: .lowDisk)
+        }
+    }
+
+    private func checkSchedule(now: Date) async {
         guard settings.schedulingEnabled else { return }
 
         if pendingFire == nil {
@@ -84,18 +107,7 @@ final class SchedulerViewModel {
     /// Checks for running build processes and either fires the clean or
     /// postpones by one hour (up to 24 hours from the original fire time).
     private func attemptClean(now: Date) async {
-        let psOutput: String
-        do {
-            let (_, data, _) = try await runner.run("/bin/ps", ["-axo", "comm="])
-            psOutput = String(data: data, encoding: .utf8) ?? ""
-        } catch {
-            return
-        }
-
-        let buildRunning = psOutput
-            .split(separator: "\n")
-            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-            .contains { ScheduleMath.isBuildProcess($0) }
+        guard let buildRunning = await isBuildRunning() else { return }
 
         if buildRunning {
             if pendingFire == nil {
@@ -113,10 +125,18 @@ final class SchedulerViewModel {
         let result = await vm.runScheduledClean(named: settings.enabledTargetNames)
         settings.lastScheduledClean = now
         if result.count > 0 {
-            await notifier.notifyCleanFinished(targetCount: result.count, reclaimedBytes: result.reclaimed)
+            await notifier.notifyCleanFinished(targetCount: result.count, reclaimedBytes: result.reclaimed,
+                                               trigger: .scheduled)
         }
         lastFired = now
         pendingFire = nil
         originalFire = nil
+    }
+
+    /// Whether any build (Xcode, xcodebuild, SwiftPM, …) is running; `nil` if
+    /// the process list couldn't be read.
+    private func isBuildRunning() async -> Bool? {
+        guard let builds = try? await buildDetector.activeBuilds() else { return nil }
+        return !builds.isEmpty
     }
 }

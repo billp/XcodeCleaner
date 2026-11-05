@@ -8,11 +8,15 @@ final class CleanerViewModel {
     private let cleaner: Cleaning
     private let availability: AvailabilityChecking
     private let fullDiskAccess: FullDiskAccessChecking
+    private let diskSpaceProvider: DiskSpaceProviding
+    private let buildDetector: BuildDetecting
     /// How long a computed size stays fresh before an auto-scan recomputes it.
     /// The top ↻ button bypasses this to force a full rescan.
     private let cacheTTL: TimeInterval
 
-    private(set) var isScheduledCleaning = false
+    /// Set while an unattended (scheduled or low-disk) clean is running.
+    private(set) var autoCleanTrigger: AutoCleanTrigger?
+    var isScheduledCleaning: Bool { autoCleanTrigger != nil }
     private(set) var cleanAllTotal = 0
     private(set) var cleanAllCompleted = 0
     var isCleaningAll: Bool { cleanAllTotal > 0 }
@@ -21,17 +25,37 @@ final class CleanerViewModel {
     /// Re-checked whenever the menu opens so it clears once the user grants access.
     private(set) var hasFullDiskAccess = true
 
+    /// Capacity of the startup volume; refreshed when the menu opens and after cleans.
+    private(set) var diskSpace: DiskSpace?
+
+    /// Builds running right now (Xcode, xcodebuild from MCP servers/scripts, SwiftPM…).
+    /// Polled while the menu is open.
+    private(set) var activeBuilds: [ActiveBuild] = []
+
+    /// A manual clean the user asked for while builds were running; awaiting
+    /// confirmation from the warning banner.
+    enum PendingClean {
+        case target(CleanupTarget)
+        case all
+    }
+    private(set) var pendingClean: PendingClean?
+
     init(scanner: DiskScanning = DiskScanner(),
          cleaner: Cleaning = Cleaner(),
          availability: AvailabilityChecking = AvailabilityChecker(),
          fullDiskAccess: FullDiskAccessChecking = FullDiskAccessChecker(),
+         diskSpace: DiskSpaceProviding = DiskSpaceReader(),
+         buildDetector: BuildDetecting = BuildDetector(),
          cacheTTL: TimeInterval = 600) {
         self.scanner = scanner
         self.cleaner = cleaner
         self.availability = availability
         self.fullDiskAccess = fullDiskAccess
+        self.diskSpaceProvider = diskSpace
+        self.buildDetector = buildDetector
         self.cacheTTL = cacheTTL
         hasFullDiskAccess = fullDiskAccess.isGranted()
+        self.diskSpace = diskSpace.current()
         var built: [CleanupTarget] = []
         let xbmcpPath = "~/Library/Developer/XcodeBuildMCP/workspaces"
         if availability.exists((xbmcpPath as NSString).expandingTildeInPath) {
@@ -63,6 +87,58 @@ final class CleanerViewModel {
 
     func refreshFullDiskAccess() {
         hasFullDiskAccess = fullDiskAccess.isGranted()
+    }
+
+    /// Re-reads the volume's capacity and returns the fresh value.
+    @discardableResult
+    func refreshDiskSpace() -> DiskSpace? {
+        diskSpace = diskSpaceProvider.current()
+        return diskSpace
+    }
+
+    var isDiskSpaceLow: Bool {
+        diskSpace.map(LowDiskMath.isLow) ?? false
+    }
+
+    /// Re-detects running builds; returns them, or `nil` if the process list
+    /// couldn't be read (the last known value is kept in that case).
+    @discardableResult
+    func refreshActiveBuilds() async -> [ActiveBuild]? {
+        guard let builds = try? await buildDetector.activeBuilds() else { return nil }
+        activeBuilds = builds
+        return builds
+    }
+
+    /// Manual per-row clean: runs immediately unless builds are active, in which
+    /// case it waits for the user to confirm via `confirmPendingClean()`.
+    func requestClean(_ target: CleanupTarget) async {
+        if await (refreshActiveBuilds() ?? []).isEmpty {
+            clean(target)
+        } else {
+            pendingClean = .target(target)
+        }
+    }
+
+    /// Manual "Clean All": same build check as `requestClean`.
+    func requestCleanAll() async {
+        if await (refreshActiveBuilds() ?? []).isEmpty {
+            cleanAll()
+        } else {
+            pendingClean = .all
+        }
+    }
+
+    func confirmPendingClean() {
+        guard let pending = pendingClean else { return }
+        pendingClean = nil
+        switch pending {
+        case .target(let target): clean(target)
+        case .all: cleanAll()
+        }
+    }
+
+    func cancelPendingClean() {
+        pendingClean = nil
     }
 
     /// A target's cached size is still fresh if it has a value stamped within `cacheTTL`.
@@ -130,6 +206,7 @@ final class CleanerViewModel {
             case .success(let after):
                 target.state = .cleaned(bytes: after)
                 target.scannedAt = Date()
+                refreshDiskSpace()
                 return max(0, (before ?? after) - after)
             case .failure(let err):
                 target.state = .error(message: err.localizedDescription)
@@ -142,9 +219,10 @@ final class CleanerViewModel {
     }
 
     /// Cleans all named targets in sequence; returns count cleaned + total reclaimed.
-    func runScheduledClean(named names: Set<String>) async -> (count: Int, reclaimed: Int64) {
-        isScheduledCleaning = true
-        defer { isScheduledCleaning = false }
+    func runScheduledClean(named names: Set<String>,
+                           trigger: AutoCleanTrigger = .scheduled) async -> (count: Int, reclaimed: Int64) {
+        autoCleanTrigger = trigger
+        defer { autoCleanTrigger = nil }
         var reclaimed: Int64 = 0
         var count = 0
         for target in targets where names.contains(target.name) {
@@ -163,6 +241,10 @@ final class CleanerViewModel {
     /// per-row clean shows just the spinner in that row (via TargetState.cleaning),
     /// exactly like scanning — no global banner.
     var statusText: String? {
-        isScheduledCleaning ? "Scheduled clean in progress…" : nil
+        switch autoCleanTrigger {
+        case .scheduled: "Scheduled clean in progress…"
+        case .lowDisk: "Low disk space — cleaning…"
+        case nil: nil
+        }
     }
 }

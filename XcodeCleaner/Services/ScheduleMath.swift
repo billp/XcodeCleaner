@@ -1,17 +1,6 @@
 import Foundation
 
 enum ScheduleMath {
-    static let buildProcessNames: Set<String> = [
-        "xcodebuild", "swift", "swiftc", "clang", "clang++", "ld", "swift-frontend",
-    ]
-
-    /// True if the basename of `comm` (e.g. "/usr/bin/xcodebuild" → "xcodebuild")
-    /// is in `buildProcessNames`.
-    static func isBuildProcess(_ comm: String) -> Bool {
-        let name = (comm as NSString).lastPathComponent
-        return buildProcessNames.contains(name)
-    }
-
     /// True if `now` matches the configured weekday/hour/minute AND `lastFired`
     /// is nil or before today's slot (prevents double-firing within the same minute).
     static func shouldFire(now: Date, weekday: Int, hour: Int, minute: Int, lastFired: Date?) -> Bool {
