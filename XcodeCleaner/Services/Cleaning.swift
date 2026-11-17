@@ -1,15 +1,20 @@
 import Foundation
 
+/// What running builds are using right now (see `PathsInUse`). A clean asks
+/// again before every entry it deletes: deleting a big target takes minutes,
+/// and a build that starts meanwhile must be spared too.
+typealias PathsInUseProvider = @Sendable () async -> Set<String>
+
 protocol Cleaning: Sendable {
     func clean(_ kind: CleanupKind) async -> Result<Void, Error>
     /// Same, but leaves alone every entry a running build is using — see
     /// `PathsInUse.isInUse`. Simulator targets don't hold build output and
     /// ignore `inUse`.
-    func clean(_ kind: CleanupKind, sparing inUse: Set<String>) async -> Result<Void, Error>
+    func clean(_ kind: CleanupKind, sparing inUse: @escaping PathsInUseProvider) async -> Result<Void, Error>
 }
 
 extension Cleaning {
-    func clean(_ kind: CleanupKind, sparing inUse: Set<String>) async -> Result<Void, Error> {
+    func clean(_ kind: CleanupKind, sparing inUse: @escaping PathsInUseProvider) async -> Result<Void, Error> {
         await clean(kind)
     }
 }
@@ -30,14 +35,14 @@ struct Cleaner: Cleaning {
     }
 
     func clean(_ kind: CleanupKind) async -> Result<Void, Error> {
-        await clean(kind, sparing: [])
+        await clean(kind, sparing: { [] })
     }
 
-    func clean(_ kind: CleanupKind, sparing inUse: Set<String>) async -> Result<Void, Error> {
+    func clean(_ kind: CleanupKind, sparing inUse: @escaping PathsInUseProvider) async -> Result<Void, Error> {
         do {
             switch kind {
             case .directory(let path):
-                try removeDirectoryContents((path as NSString).expandingTildeInPath, sparing: inUse)
+                try await removeDirectoryContents((path as NSString).expandingTildeInPath, sparing: inUse)
             case .buildFolders(let root):
                 try await removeBuildFolders((root as NSString).expandingTildeInPath, sparing: inUse)
             case .unavailableSimulators:
@@ -127,11 +132,14 @@ struct Cleaner: Cleaning {
     ///
     /// A `.build` that a running `swift build` (or anything else) is using is
     /// left in place.
-    func removeBuildFolders(_ root: String, sparing inUse: Set<String> = []) async throws {
+    func removeBuildFolders(_ root: String, sparing inUse: @escaping PathsInUseProvider = { [] }) async throws {
         let fm = FileManager.default
         var lastError: Error?
-        let isSpared = { (path: String) in PathsInUse.isInUse(PathsInUse.normalize(path), paths: inUse) }
-        for path in try await BuildFolders.paths(root: root, runner: runner) where !isSpared(path) {
+        func isSpared(_ path: String, _ paths: Set<String>) -> Bool {
+            PathsInUse.isInUse(PathsInUse.normalize(path), paths: paths)
+        }
+        for path in try await BuildFolders.paths(root: root, runner: runner) {
+            guard !isSpared(path, await inUse()) else { continue }
             for _ in 0..<3 {
                 guard fm.fileExists(atPath: path) else { break }  // gone (lost a race) → done
                 do {
@@ -142,7 +150,8 @@ struct Cleaner: Cleaning {
                 }
             }
         }
-        let remaining = try await BuildFolders.paths(root: root, runner: runner).filter { !isSpared($0) }
+        let paths = await inUse()
+        let remaining = try await BuildFolders.paths(root: root, runner: runner).filter { !isSpared($0, paths) }
         if !remaining.isEmpty, let lastError {
             throw lastError
         }
@@ -159,15 +168,17 @@ struct Cleaner: Cleaning {
     ///
     /// Entries a running build is using (its DerivedData or XcodeBuildMCP
     /// workspace folder…) are left in place.
-    func removeDirectoryContents(_ path: String, sparing inUse: Set<String> = []) throws {
+    func removeDirectoryContents(_ path: String,
+                                 sparing inUse: @escaping PathsInUseProvider = { [] }) async throws {
         let fm = FileManager.default
         guard fm.fileExists(atPath: path) else { return }
         var lastError: Error?
         let root = PathsInUse.normalize(path)
-        let isSpared = { (entry: String) in
-            PathsInUse.isInUse((root as NSString).appendingPathComponent(entry), paths: inUse)
+        func isSpared(_ entry: String, _ paths: Set<String>) -> Bool {
+            PathsInUse.isInUse((root as NSString).appendingPathComponent(entry), paths: paths)
         }
-        for entry in try fm.contentsOfDirectory(atPath: path) where !isSpared(entry) {
+        for entry in try fm.contentsOfDirectory(atPath: path) {
+            guard !isSpared(entry, await inUse()) else { continue }
             let full = (path as NSString).appendingPathComponent(entry)
             for _ in 0..<3 {
                 guard fm.fileExists(atPath: full) else { break }  // gone (lost a race) → done
@@ -182,7 +193,8 @@ struct Cleaner: Cleaning {
         // The directory's final state is the source of truth: if it's empty the
         // clean succeeded regardless of per-entry hiccups along the way
         // (entries spared for a running build don't count).
-        let remaining = ((try? fm.contentsOfDirectory(atPath: path)) ?? []).filter { !isSpared($0) }
+        let paths = await inUse()
+        let remaining = ((try? fm.contentsOfDirectory(atPath: path)) ?? []).filter { !isSpared($0, paths) }
         if !remaining.isEmpty, let lastError {
             throw lastError
         }

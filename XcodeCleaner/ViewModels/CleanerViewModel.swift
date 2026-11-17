@@ -169,12 +169,12 @@ final class CleanerViewModel {
     /// Paths running builds are using, which every clean leaves alone; empty
     /// when the process list can't be read (a manual clean still goes ahead —
     /// the user already confirmed it if builds were showing).
-    func pathsInUse() async -> Set<String> {
-        (try? await buildDetector.pathsInUse()) ?? []
+    private var pathsInUse: PathsInUseProvider {
+        { [buildDetector] in (try? await buildDetector.pathsInUse()) ?? [] }
     }
 
     func clean(_ target: CleanupTarget) {
-        Task { _ = await performClean(target, sparing: await pathsInUse()) }
+        Task { _ = await performClean(target, sparing: pathsInUse) }
     }
 
     /// Cleans every target that has something to clean (manual "Clean All");
@@ -185,10 +185,9 @@ final class CleanerViewModel {
         guard !toClean.isEmpty else { return }
         cleanAllCompleted = 0
         cleanAllTotal = toClean.count
-        let inUse = Task { await pathsInUse() }
         for target in toClean {
             Task {
-                _ = await performClean(target, sparing: await inUse.value)
+                _ = await performClean(target, sparing: pathsInUse)
                 cleanAllCompleted += 1
                 if cleanAllCompleted >= cleanAllTotal {
                     cleanAllTotal = 0
@@ -201,12 +200,15 @@ final class CleanerViewModel {
     // A scheduled run and an already-in-flight manual clean can overlap; all
     // target.state writes happen on the MainActor so this is serialized and benign.
     /// Cleans one target, returning bytes reclaimed (before − after). Entries
-    /// holding any of `inUse` are left alone.
-    private func performClean(_ target: CleanupTarget, sparing inUse: Set<String>) async -> Int64 {
-        var before = target.sizeBytes
-        if before == nil, case .success(let b) = await scanner.size(of: target.kind) {
-            before = b
-        }
+    /// running builds use are left alone.
+    ///
+    /// It never measures before deleting — on a nearly full disk, a minutes-long
+    /// `du` of a huge folder is the last thing to wait for. "Before" is the last
+    /// scanned size; for a never-scanned target, the change in free space stands in.
+    private func performClean(_ target: CleanupTarget,
+                              sparing inUse: @escaping PathsInUseProvider) async -> Int64 {
+        let before = target.sizeBytes ?? target.lastKnownBytes
+        let freeBefore = before == nil ? diskSpaceProvider.current()?.availableBytes : nil
         target.state = .cleaning
         let result = await cleaner.clean(target.kind, sparing: inUse)
         switch result {
@@ -215,8 +217,10 @@ final class CleanerViewModel {
             case .success(let after):
                 target.state = .cleaned(bytes: after)
                 target.scannedAt = Date()
-                refreshDiskSpace()
-                return max(0, (before ?? after) - after)
+                let freeAfter = refreshDiskSpace()?.availableBytes
+                if let before { return max(0, before - after) }
+                if let freeBefore, let freeAfter { return max(0, freeAfter - freeBefore) }
+                return 0
             case .failure(let err):
                 target.state = .error(message: err.localizedDescription)
                 return 0
@@ -227,11 +231,13 @@ final class CleanerViewModel {
         }
     }
 
-    /// Cleans all named targets in sequence, leaving alone entries holding any of
-    /// `inUse`; returns count cleaned + total reclaimed.
+    /// Cleans all named targets in sequence, leaving alone what running builds
+    /// use (`inUse` defaults to this view model's build detector); returns count
+    /// cleaned + total reclaimed.
     func runScheduledClean(named names: Set<String>,
                            trigger: AutoCleanTrigger = .scheduled,
-                           sparing inUse: Set<String> = []) async -> (count: Int, reclaimed: Int64) {
+                           sparing inUse: PathsInUseProvider? = nil) async -> (count: Int, reclaimed: Int64) {
+        let inUse = inUse ?? pathsInUse
         autoCleanTrigger = trigger
         defer { autoCleanTrigger = nil }
         var reclaimed: Int64 = 0

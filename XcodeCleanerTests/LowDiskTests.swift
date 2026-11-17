@@ -62,7 +62,8 @@ final class LowDiskSchedulerTests: XCTestCase {
                                   cleaner: cleaner,
                                   availability: FakeAvailability(existsResult: false),
                                   fullDiskAccess: FakeFullDiskAccess(granted: true),
-                                  diskSpace: FakeDiskSpace(available: available, total: 1000))
+                                  diskSpace: FakeDiskSpace(available: available, total: 1000),
+                                  buildDetector: FakeBuildDetector.idle)
         let notifier = FakeNotifier()
         let scheduler = SchedulerViewModel(vm: vm, settings: settings,
                                            buildDetector: builds,

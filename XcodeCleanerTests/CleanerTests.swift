@@ -1,21 +1,22 @@
 import XCTest
+import os
 @testable import XcodeCleaner
 
 final class CleanerTests: XCTestCase {
-    func testRemoveDirectoryContentsLeavesDirEmpty() throws {
+    func testRemoveDirectoryContentsLeavesDirEmpty() async throws {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
         try "x".write(to: dir.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
         try fm.createDirectory(at: dir.appendingPathComponent("sub"), withIntermediateDirectories: true)
 
-        try Cleaner().removeDirectoryContents(dir.path)
+        try await Cleaner().removeDirectoryContents(dir.path)
 
         XCTAssertTrue(fm.fileExists(atPath: dir.path))
         XCTAssertEqual(try fm.contentsOfDirectory(atPath: dir.path), [])
     }
 
-    func testRemoveDirectoryContentsToleratesEntryVanishingMidDelete() throws {
+    func testRemoveDirectoryContentsToleratesEntryVanishingMidDelete() async throws {
         // Simulates a concurrent writer (e.g. an active build churning
         // ModuleCache.noindex): an entry disappears after enumeration but before
         // removal. The clean should still empty the directory without throwing.
@@ -33,7 +34,7 @@ final class CleanerTests: XCTestCase {
         // Race: delete the nested tree concurrently while the cleaner runs.
         let racer = Thread { try? fm.removeItem(at: nested) }
         racer.start()
-        try Cleaner().removeDirectoryContents(dir.path)
+        try await Cleaner().removeDirectoryContents(dir.path)
 
         XCTAssertTrue(fm.fileExists(atPath: dir.path))
         XCTAssertEqual(try fm.contentsOfDirectory(atPath: dir.path), [])
@@ -249,7 +250,7 @@ final class CleanerTests: XCTestCase {
         )
     }
 
-    func testRemoveDirectoryContentsSparesEntriesInUse() throws {
+    func testRemoveDirectoryContentsSparesEntriesInUse() async throws {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? fm.removeItem(at: dir) }
@@ -258,10 +259,35 @@ final class CleanerTests: XCTestCase {
         try fm.createDirectory(at: busy, withIntermediateDirectories: true)
         try fm.createDirectory(at: idle, withIntermediateDirectories: true)
 
-        try Cleaner().removeDirectoryContents(dir.path, sparing: [PathsInUse.normalize(busy.path)])
+        try await Cleaner().removeDirectoryContents(dir.path, sparing: { [PathsInUse.normalize(busy.path)] })
 
         XCTAssertEqual(try fm.contentsOfDirectory(atPath: dir.path), ["wt-busy"])
         XCTAssertTrue(fm.fileExists(atPath: busy.path))
+    }
+
+    /// Deleting a big target takes minutes; a build that starts partway through
+    /// must keep its folder, so what's in use is re-checked for every entry.
+    func testRemoveDirectoryContentsSparesABuildThatStartsMidClean() async throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: dir) }
+        let names = (0..<6).map { "wt-\($0)" }
+        for name in names {
+            try fm.createDirectory(at: dir.appendingPathComponent("\(name)/DerivedData"),
+                                   withIntermediateDirectories: true)
+        }
+        // Nothing builds at first; once the clean is underway, every remaining
+        // folder is in use (as if builds started in all of them).
+        let calls = OSAllocatedUnfairLock(initialState: 0)
+        let allFolders = Set(names.map { PathsInUse.normalize(dir.appendingPathComponent("\($0)/DerivedData").path) })
+        let provider: PathsInUseProvider = {
+            calls.withLock { $0 += 1; return $0 } > 1 ? allFolders : []
+        }
+
+        try await Cleaner().removeDirectoryContents(dir.path, sparing: provider)
+
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: dir.path).count, names.count - 1,
+                       "only the entry checked before any build started may go")
     }
 
     func testCleanBuildFoldersSparesOneInUse() async throws {
@@ -279,7 +305,7 @@ final class CleanerTests: XCTestCase {
             .init(status: 0, stdout: Data("\(busy.path)\u{0}".utf8), stderr: Data()),
         ])
         let inUse: Set<String> = [PathsInUse.normalize(busy.path)]
-        let result = await Cleaner(runner: runner).clean(.buildFolders(root: base.path), sparing: inUse)
+        let result = await Cleaner(runner: runner).clean(.buildFolders(root: base.path), sparing: { inUse })
 
         if case .failure(let error) = result { XCTFail("expected success, got \(error)") }
         XCTAssertTrue(fm.fileExists(atPath: busy.path), ".build in use must stay")

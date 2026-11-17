@@ -34,9 +34,10 @@ final class SchedulerViewModelTests: XCTestCase {
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
-                                  availability: FakeAvailability(existsResult: true))
-        let scheduler = SchedulerViewModel(vm: vm, settings: settings,
+                                  availability: FakeAvailability(existsResult: true),
                                   buildDetector: FakeBuildDetector.idle)
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings,
+        buildDetector: FakeBuildDetector.idle)
         await scheduler.tick(now: makeFireDate())
         XCTAssertTrue(cleaner.cleanedKinds.isEmpty)
     }
@@ -48,7 +49,8 @@ final class SchedulerViewModelTests: XCTestCase {
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let detector = FakeBuildDetector.busy
         let scheduler = SchedulerViewModel(vm: vm, settings: settings, buildDetector: detector)
         let fire = makeFireDate()
@@ -64,7 +66,8 @@ final class SchedulerViewModelTests: XCTestCase {
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let detector = FakeBuildDetector.idle
         let scheduler = SchedulerViewModel(vm: vm, settings: settings, buildDetector: detector, notifier: FakeNotifier())
         let fire = makeFireDate()
@@ -82,7 +85,8 @@ final class SchedulerViewModelTests: XCTestCase {
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let detector = FakeBuildDetector.busy
         let scheduler = SchedulerViewModel(vm: vm, settings: settings, buildDetector: detector)
         let original = makeFireDate()
@@ -102,10 +106,11 @@ final class SchedulerViewModelTests: XCTestCase {
         settings.enabledTargetNames = ["Xcode DerivedData"]
         let vm = CleanerViewModel(scanner: FakeScanner(results: [.success(1000), .success(0)]),
                                   cleaner: FakeCleaner(result: .success(())),
-                                  availability: FakeAvailability(existsResult: false))
+                                  availability: FakeAvailability(existsResult: false),
+                                  buildDetector: FakeBuildDetector.idle)
         let notifier = FakeNotifier()
         let scheduler = SchedulerViewModel(vm: vm, settings: settings,
-                                  buildDetector: FakeBuildDetector.idle,
+        buildDetector: FakeBuildDetector.idle,
                                   notifier: notifier)
         let fire = makeFireDate()
         await scheduler.tick(now: fire)
@@ -120,10 +125,11 @@ final class SchedulerViewModelTests: XCTestCase {
         settings.enabledTargetNames = []    // no targets enabled
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: FakeCleaner(result: .success(())),
-                                  availability: FakeAvailability(existsResult: false))
+                                  availability: FakeAvailability(existsResult: false),
+                                  buildDetector: FakeBuildDetector.idle)
         let notifier = FakeNotifier()
         let scheduler = SchedulerViewModel(vm: vm, settings: settings,
-                                  buildDetector: FakeBuildDetector.idle,
+        buildDetector: FakeBuildDetector.idle,
                                   notifier: notifier)
         let fire = makeFireDate()
         await scheduler.tick(now: fire)
@@ -138,7 +144,8 @@ final class SchedulerViewModelTests: XCTestCase {
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         // First check finds a running build; the second finds none.
         let detector = FakeBuildDetector(responses: [[FakeBuildDetector.sampleBuild], []])
         let scheduler = SchedulerViewModel(vm: vm, settings: settings, buildDetector: detector)
@@ -169,7 +176,8 @@ final class SchedulerViewModelTests: XCTestCase {
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let scheduler = SchedulerViewModel(
             vm: vm, settings: settings,
             buildDetector: FakeBuildDetector.idle,
@@ -190,7 +198,8 @@ final class SchedulerViewModelTests: XCTestCase {
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let scheduler = SchedulerViewModel(
             vm: vm, settings: settings,
             buildDetector: FakeBuildDetector.idle,
@@ -209,7 +218,8 @@ final class SchedulerViewModelTests: XCTestCase {
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let scheduler = SchedulerViewModel(
             vm: vm, settings: settings,
             buildDetector: FakeBuildDetector.idle
@@ -225,7 +235,8 @@ final class SchedulerViewModelTests: XCTestCase {
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let scheduler = SchedulerViewModel(
             vm: vm, settings: settings,
             buildDetector: FakeBuildDetector.busy

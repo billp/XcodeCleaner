@@ -14,7 +14,8 @@ final class CleanerViewModelTests: XCTestCase {
     func testScanSetsScannedBytes() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(123)),
                                   cleaner: FakeCleaner(result: .success(())),
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let target = vm.targets[0]
         vm.scan(target)
         await waitUntil { if case .scanned = target.state { return true }; return false }
@@ -25,13 +26,15 @@ final class CleanerViewModelTests: XCTestCase {
         let denied = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                       cleaner: FakeCleaner(result: .success(())),
                                       availability: FakeAvailability(existsResult: true),
-                                      fullDiskAccess: FakeFullDiskAccess(granted: false))
+                                      fullDiskAccess: FakeFullDiskAccess(granted: false),
+                                      buildDetector: FakeBuildDetector.idle)
         XCTAssertFalse(denied.hasFullDiskAccess)
 
         let granted = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                        cleaner: FakeCleaner(result: .success(())),
                                        availability: FakeAvailability(existsResult: true),
-                                       fullDiskAccess: FakeFullDiskAccess(granted: true))
+                                       fullDiskAccess: FakeFullDiskAccess(granted: true),
+                                       buildDetector: FakeBuildDetector.idle)
         granted.refreshFullDiskAccess()
         XCTAssertTrue(granted.hasFullDiskAccess)
     }
@@ -41,7 +44,8 @@ final class CleanerViewModelTests: XCTestCase {
         let vm = CleanerViewModel(scanner: scanner,
                                   cleaner: FakeCleaner(result: .success(())),
                                   availability: FakeAvailability(existsResult: true),
-                                  fullDiskAccess: FakeFullDiskAccess(granted: true))
+                                  fullDiskAccess: FakeFullDiskAccess(granted: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let target = vm.targets[0]
         vm.scan(target)
         await waitUntil { if case .scanned = target.state { return true }; return false }
@@ -59,7 +63,8 @@ final class CleanerViewModelTests: XCTestCase {
         let vm = CleanerViewModel(scanner: scanner,
                                   cleaner: FakeCleaner(result: .success(())),
                                   availability: FakeAvailability(existsResult: true),
-                                  fullDiskAccess: FakeFullDiskAccess(granted: true))
+                                  fullDiskAccess: FakeFullDiskAccess(granted: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let target = vm.targets[0]
         vm.scan(target)
         await waitUntil { target.sizeBytes == 500 }
@@ -74,6 +79,7 @@ final class CleanerViewModelTests: XCTestCase {
                                   cleaner: FakeCleaner(result: .success(())),
                                   availability: FakeAvailability(existsResult: true),
                                   fullDiskAccess: FakeFullDiskAccess(granted: true),
+                                  buildDetector: FakeBuildDetector.idle,
                                   cacheTTL: 600)
         let target = vm.targets[0]
         vm.scan(target)
@@ -88,7 +94,8 @@ final class CleanerViewModelTests: XCTestCase {
     func testScanFailureSetsError() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .failure(ProcessError.process("x"))),
                                   cleaner: FakeCleaner(result: .success(())),
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let target = vm.targets[0]
         vm.scan(target)
         await waitUntil { if case .error = target.state { return true }; return false }
@@ -98,7 +105,8 @@ final class CleanerViewModelTests: XCTestCase {
     func testCleanSetsCleanedBytes() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: FakeCleaner(result: .success(())),
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let target = vm.targets[0]
         vm.clean(target)
         await waitUntil { if case .cleaned = target.state { return true }; return false }
@@ -108,7 +116,8 @@ final class CleanerViewModelTests: XCTestCase {
     func testCleanFailureSetsError() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: FakeCleaner(result: .failure(ProcessError.process("y"))),
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         let target = vm.targets[0]
         vm.clean(target)
         await waitUntil { if case .error = target.state { return true }; return false }
@@ -118,7 +127,8 @@ final class CleanerViewModelTests: XCTestCase {
     func testXcodeBuildMCPRowPresentWhenInstalled() {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: FakeCleaner(result: .success(())),
-                                  availability: FakeAvailability(existsResult: true))
+                                  availability: FakeAvailability(existsResult: true),
+                                  buildDetector: FakeBuildDetector.idle)
         XCTAssertEqual(vm.targets.first?.name, "XcodeBuildMCP workspaces")
         XCTAssertTrue(vm.targets.contains { $0.name == "XcodeBuildMCP workspaces" })
     }
@@ -126,28 +136,61 @@ final class CleanerViewModelTests: XCTestCase {
     func testXcodeBuildMCPRowAbsentWhenNotInstalled() {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: FakeCleaner(result: .success(())),
-                                  availability: FakeAvailability(existsResult: false))
+                                  availability: FakeAvailability(existsResult: false),
+                                  buildDetector: FakeBuildDetector.idle)
         XCTAssertFalse(vm.targets.contains { $0.name == "XcodeBuildMCP workspaces" })
         XCTAssertEqual(vm.targets.first?.name, "Xcode DerivedData")
     }
 
     func testRunScheduledCleanReclaimsAndClearsFlag() async {
-        let scanner = FakeScanner(results: [.success(1000), .success(0)]) // before, after
+        let scanner = FakeScanner(results: [.success(0)]) // after
         let vm = CleanerViewModel(scanner: scanner,
                                   cleaner: FakeCleaner(result: .success(())),
-                                  availability: FakeAvailability(existsResult: false))
-        let name = vm.targets.first!.name
-        let result = await vm.runScheduledClean(named: [name])
+                                  availability: FakeAvailability(existsResult: false),
+                                  buildDetector: FakeBuildDetector.idle)
+        let target = vm.targets.first!
+        target.state = .scanned(bytes: 1000)
+        let result = await vm.runScheduledClean(named: [target.name])
         XCTAssertEqual(result.count, 1)
         XCTAssertEqual(result.reclaimed, 1000)
         XCTAssertFalse(vm.isScheduledCleaning)
+    }
+
+    /// No `du` before deleting: the last scanned size is "before", even while a
+    /// rescan is in flight.
+    func testCleanDoesNotMeasureBeforeDeleting() async {
+        let scanner = FakeScanner(results: [.success(200)]) // after
+        let vm = CleanerViewModel(scanner: scanner,
+                                  cleaner: FakeCleaner(result: .success(())),
+                                  availability: FakeAvailability(existsResult: false),
+                                  buildDetector: FakeBuildDetector.idle)
+        let target = vm.targets.first!
+        target.state = .scanned(bytes: 1000)
+        target.state = .scanning
+        let result = await vm.runScheduledClean(named: [target.name])
+        XCTAssertEqual(scanner.callCount, 1, "only the after-clean scan")
+        XCTAssertEqual(result.reclaimed, 800)
+    }
+
+    /// Never scanned: the change in free space stands in for the size.
+    func testNeverScannedTargetReportsFreedSpace() async {
+        let disk = FakeDiskSpace(available: 100, total: 1000)
+        let cleaner = CallbackCleaner { disk.space = DiskSpace(availableBytes: 400, totalBytes: 1000) }
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
+                                  cleaner: cleaner,
+                                  availability: FakeAvailability(existsResult: false),
+                                  diskSpace: disk,
+                                  buildDetector: FakeBuildDetector.idle)
+        let result = await vm.runScheduledClean(named: [vm.targets.first!.name])
+        XCTAssertEqual(result.reclaimed, 300)
     }
 
     func testManualCleanShowsRowSpinnerNotBanner() async {
         let gate = CleanGate()
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: gate,
-                                  availability: FakeAvailability(existsResult: false))
+                                  availability: FakeAvailability(existsResult: false),
+                                  buildDetector: FakeBuildDetector.idle)
         let target = vm.targets[0]
         XCTAssertNil(vm.statusText)
 
@@ -166,7 +209,8 @@ final class CleanerViewModelTests: XCTestCase {
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(1000)),
                                   cleaner: cleaner,
-                                  availability: FakeAvailability(existsResult: false))
+                                  availability: FakeAvailability(existsResult: false),
+                                  buildDetector: FakeBuildDetector.idle)
         vm.scanAll()                                   // every target → 1000 bytes
         await waitUntil { vm.targets.allSatisfy { $0.sizeBytes == 1000 } }
         let expected = Set(vm.targets.map(\.kind))
@@ -179,7 +223,8 @@ final class CleanerViewModelTests: XCTestCase {
         let gate = BatchCleanGate()
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(1000)),
                                   cleaner: gate,
-                                  availability: FakeAvailability(existsResult: false))
+                                  availability: FakeAvailability(existsResult: false),
+                                  buildDetector: FakeBuildDetector.idle)
         vm.scanAll()
         await waitUntil { vm.targets.allSatisfy { $0.sizeBytes == 1000 } }
         let n = vm.targets.count
@@ -199,7 +244,8 @@ final class CleanerViewModelTests: XCTestCase {
         let cleaner = FakeCleaner(result: .success(()))
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)),
                                   cleaner: cleaner,
-                                  availability: FakeAvailability(existsResult: false))
+                                  availability: FakeAvailability(existsResult: false),
+                                  buildDetector: FakeBuildDetector.idle)
         vm.scanAll()                                   // every target → 0 bytes
         await waitUntil { vm.targets.allSatisfy { $0.sizeBytes == 0 } }
         vm.cleanAll()
@@ -210,7 +256,8 @@ final class CleanerViewModelTests: XCTestCase {
     func testScanAllPreservesCleaningTarget() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(123)),
                                   cleaner: FakeCleaner(result: .success(())),
-                                  availability: FakeAvailability(existsResult: false))
+                                  availability: FakeAvailability(existsResult: false),
+                                  buildDetector: FakeBuildDetector.idle)
         let cleaning = vm.targets[0]
         let idle = vm.targets[1]
         cleaning.state = .cleaning           // simulate an in-flight clean
@@ -228,7 +275,8 @@ final class CleanerViewModelTests: XCTestCase {
     func testScanSkipsAlreadyScanningTarget() async {
         let vm = CleanerViewModel(scanner: FakeScanner(result: .success(123)),
                                   cleaner: FakeCleaner(result: .success(())),
-                                  availability: FakeAvailability(existsResult: false))
+                                  availability: FakeAvailability(existsResult: false),
+                                  buildDetector: FakeBuildDetector.idle)
         let target = vm.targets[0]
         target.state = .scanning
 
@@ -237,5 +285,14 @@ final class CleanerViewModelTests: XCTestCase {
         // Give any (wrong) scan Task a chance to run, then confirm state unchanged.
         try? await Task.sleep(nanoseconds: 100_000_000)
         XCTAssertEqual(target.state, .scanning)
+    }
+}
+
+/// Runs `onClean` inside every clean (e.g. to change the fake free space).
+private struct CallbackCleaner: Cleaning, @unchecked Sendable {
+    let onClean: () -> Void
+    func clean(_ kind: CleanupKind) async -> Result<Void, Error> {
+        onClean()
+        return .success(())
     }
 }

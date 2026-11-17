@@ -61,11 +61,14 @@ final class SchedulerViewModel {
               LowDiskMath.shouldClean(space: space, lastRun: settings.lastLowDiskClean, now: now)
         else { return }
         // Can't tell what builds are using → try again next tick.
-        guard let inUse = try? await buildDetector.pathsInUse() else { return }
+        guard (try? await buildDetector.pathsInUse()) != nil else { return }
 
         settings.lastLowDiskClean = now
+        // Re-asked before each entry; a failed read mid-clean spares nothing new.
         let result = await vm.runScheduledClean(named: settings.enabledTargetNames, trigger: .lowDisk,
-                                                sparing: inUse)
+                                                sparing: { [buildDetector] in
+                                                    (try? await buildDetector.pathsInUse()) ?? []
+                                                })
         if result.count > 0 {
             await notifier.notifyCleanFinished(targetCount: result.count, reclaimedBytes: result.reclaimed,
                                                trigger: .lowDisk)

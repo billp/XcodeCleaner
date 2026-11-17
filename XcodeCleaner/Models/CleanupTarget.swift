@@ -5,7 +5,12 @@ final class CleanupTarget: Identifiable {
     let id = UUID()
     let name: String
     let kind: CleanupKind
-    var state: TargetState = .idle
+    var state: TargetState = .idle {
+        didSet { if let bytes = sizeBytes { lastKnownBytes = bytes } }
+    }
+    /// The most recent size measured, kept while a rescan or clean is running
+    /// (when `sizeBytes` is nil) so a clean can start without measuring first.
+    private(set) var lastKnownBytes: Int64?
     /// When the current size value was last computed — drives cache freshness.
     var scannedAt: Date?
 
