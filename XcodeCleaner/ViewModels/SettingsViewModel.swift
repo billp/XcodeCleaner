@@ -104,6 +104,21 @@ final class SettingsViewModel {
         }
     }
 
+    /// Whether the disk was still low after the last low-disk clean (true while
+    /// one runs, so a clean that never finished still counts); only then does
+    /// the cooldown apply.
+    var lastLowDiskCleanLeftDiskLow: Bool {
+        get {
+            access(keyPath: \.lastLowDiskCleanLeftDiskLow)
+            return defaults.bool(forKey: "xclean.lastLowDiskCleanLeftDiskLow")
+        }
+        set {
+            withMutation(keyPath: \.lastLowDiskCleanLeftDiskLow) {
+                defaults.set(newValue, forKey: "xclean.lastLowDiskCleanLeftDiskLow")
+            }
+        }
+    }
+
     var scheduleWeekday: Int {
         get {
             access(keyPath: \.scheduleWeekday)

@@ -21,15 +21,22 @@ final class LowDiskMathTests: XCTestCase {
 
     func testShouldCleanRespectsCooldown() {
         let low = DiskSpace(availableBytes: 50, totalBytes: 1000)
-        XCTAssertTrue(LowDiskMath.shouldClean(space: low, lastRun: nil, now: now))
-        XCTAssertFalse(LowDiskMath.shouldClean(space: low, lastRun: now.addingTimeInterval(-60), now: now))
+        XCTAssertTrue(LowDiskMath.shouldClean(space: low, lastRun: nil, lastRunLeftDiskLow: false, now: now))
+        XCTAssertFalse(LowDiskMath.shouldClean(space: low, lastRun: now.addingTimeInterval(-60),
+                                               lastRunLeftDiskLow: true, now: now))
         XCTAssertTrue(LowDiskMath.shouldClean(space: low, lastRun: now.addingTimeInterval(-LowDiskMath.cooldown),
-                                              now: now))
+                                              lastRunLeftDiskLow: true, now: now))
+    }
+
+    func testNoCooldownAfterACleanThatFreedEnough() {
+        let low = DiskSpace(availableBytes: 50, totalBytes: 1000)
+        XCTAssertTrue(LowDiskMath.shouldClean(space: low, lastRun: now.addingTimeInterval(-60),
+                                              lastRunLeftDiskLow: false, now: now))
     }
 
     func testShouldNotCleanWhenSpaceIsFine() {
         let fine = DiskSpace(availableBytes: 500, totalBytes: 1000)
-        XCTAssertFalse(LowDiskMath.shouldClean(space: fine, lastRun: nil, now: now))
+        XCTAssertFalse(LowDiskMath.shouldClean(space: fine, lastRun: nil, lastRunLeftDiskLow: false, now: now))
     }
 }
 
@@ -121,9 +128,43 @@ final class LowDiskSchedulerTests: XCTestCase {
         XCTAssertEqual(h.cleaner.cleanedKinds.count, 2)
     }
 
+    /// The clean got free space back above the threshold, then builds filled
+    /// the disk again: clean again right away instead of waiting out the cooldown.
+    func testCleansAgainWhenDiskRefillsAfterASuccessfulClean() async {
+        let disk = FakeDiskSpace(available: 50, total: 1000)
+        let settings = SettingsViewModel(userDefaults: makeSuite())
+        settings.lowDiskCleanEnabled = true
+        settings.enabledTargetNames = ["Xcode DerivedData"]
+        let cleaner = RefillingCleaner(disk: disk)
+        let vm = CleanerViewModel(scanner: FakeScanner(result: .success(0)), cleaner: cleaner,
+                                  availability: FakeAvailability(existsResult: false),
+                                  fullDiskAccess: FakeFullDiskAccess(granted: true),
+                                  diskSpace: disk, buildDetector: FakeBuildDetector.idle)
+        let scheduler = SchedulerViewModel(vm: vm, settings: settings, buildDetector: FakeBuildDetector.idle,
+                                           notifier: FakeNotifier())
+
+        await scheduler.tick(now: now)
+        XCTAssertFalse(settings.lastLowDiskCleanLeftDiskLow)
+        disk.space = DiskSpace(availableBytes: 50, totalBytes: 1000)  // builds fill it up again
+        await scheduler.tick(now: now.addingTimeInterval(3600))
+        XCTAssertEqual(cleaner.count, 2)
+    }
+
     func testViewModelReportsLowDisk() {
         let h = makeHarness(available: 50)
         XCTAssertEqual(h.vm.diskSpace, DiskSpace(availableBytes: 50, totalBytes: 1000))
         XCTAssertTrue(h.vm.isDiskSpaceLow)
+    }
+}
+
+/// Each clean frees the disk back to 50% free.
+private final class RefillingCleaner: Cleaning, @unchecked Sendable {
+    let disk: FakeDiskSpace
+    private(set) var count = 0
+    init(disk: FakeDiskSpace) { self.disk = disk }
+    func clean(_ kind: CleanupKind) async -> Result<Void, Error> {
+        count += 1
+        disk.space = DiskSpace(availableBytes: 500, totalBytes: 1000)
+        return .success(())
     }
 }

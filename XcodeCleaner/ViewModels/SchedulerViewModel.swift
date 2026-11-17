@@ -51,24 +51,28 @@ final class SchedulerViewModel {
     }
 
     /// When enabled and free space is below `LowDiskMath.threshold`, cleans the
-    /// selected targets (at most once per `LowDiskMath.cooldown`). It doesn't
+    /// selected targets (at most once per `LowDiskMath.cooldown` if the last
+    /// clean couldn't bring free space back above the threshold). It doesn't
     /// wait for builds to finish — with agents building all day there may never
     /// be a quiet moment, and the disk filling up breaks those builds anyway.
     /// Instead it leaves alone the folders running builds are using.
     func checkLowDiskSpace(now: Date) async {
         guard settings.lowDiskCleanEnabled, !vm.isScheduledCleaning else { return }
         guard let space = vm.refreshDiskSpace(),
-              LowDiskMath.shouldClean(space: space, lastRun: settings.lastLowDiskClean, now: now)
+              LowDiskMath.shouldClean(space: space, lastRun: settings.lastLowDiskClean,
+                                      lastRunLeftDiskLow: settings.lastLowDiskCleanLeftDiskLow, now: now)
         else { return }
         // Can't tell what builds are using → try again next tick.
         guard (try? await buildDetector.pathsInUse()) != nil else { return }
 
         settings.lastLowDiskClean = now
+        settings.lastLowDiskCleanLeftDiskLow = true
         // Re-asked before each entry; a failed read mid-clean spares nothing new.
         let result = await vm.runScheduledClean(named: settings.enabledTargetNames, trigger: .lowDisk,
                                                 sparing: { [buildDetector] in
                                                     (try? await buildDetector.pathsInUse()) ?? []
                                                 })
+        settings.lastLowDiskCleanLeftDiskLow = vm.refreshDiskSpace().map(LowDiskMath.isLow) ?? true
         if result.count > 0 {
             await notifier.notifyCleanFinished(targetCount: result.count, reclaimedBytes: result.reclaimed,
                                                trigger: .lowDisk)

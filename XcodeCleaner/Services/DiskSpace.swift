@@ -48,17 +48,21 @@ struct DiskSpaceReader: DiskSpaceProviding {
 enum LowDiskMath {
     /// Auto-clean kicks in when free space drops below this fraction of the disk.
     static let threshold = 0.10
-    /// Minimum gap between low-disk cleans, so a clean that can't lift free space
-    /// back above the threshold doesn't re-run on every tick.
+    /// Minimum gap between low-disk cleans when the last one couldn't lift free
+    /// space back above the threshold, so it doesn't re-run on every tick.
     static let cooldown: TimeInterval = 6 * 60 * 60
 
     static func isLow(_ space: DiskSpace) -> Bool {
         space.freeFraction < threshold
     }
 
-    static func shouldClean(space: DiskSpace, lastRun: Date?, now: Date) -> Bool {
+    /// - Parameter lastRunLeftDiskLow: whether the disk was still low when the
+    ///   last clean finished (or it never finished). A clean that did free
+    ///   enough space re-arms immediately: builds can fill hundreds of GB again
+    ///   within hours, and waiting out a cooldown then lets the disk fill up.
+    static func shouldClean(space: DiskSpace, lastRun: Date?, lastRunLeftDiskLow: Bool, now: Date) -> Bool {
         guard isLow(space) else { return false }
-        guard let lastRun else { return true }
+        guard let lastRun, lastRunLeftDiskLow else { return true }
         return now.timeIntervalSince(lastRun) >= cooldown
     }
 }
