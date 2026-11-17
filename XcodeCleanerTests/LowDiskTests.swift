@@ -93,8 +93,19 @@ final class LowDiskSchedulerTests: XCTestCase {
         XCTAssertTrue(h.cleaner.cleanedKinds.isEmpty)
     }
 
-    func testWaitsWhileBuildRuns() async {
-        let h = makeHarness(available: 50, builds: .busy)
+    /// Doesn't wait for builds: cleans right away, sparing what they use.
+    func testCleansDuringBuildsSparingFoldersInUse() async {
+        let inUse: Set<String> = ["/Users/me/Library/Developer/XcodeBuildMCP/workspaces/wt-1/DerivedData"]
+        let h = makeHarness(available: 50, builds: FakeBuildDetector(builds: [FakeBuildDetector.sampleBuild],
+                                                                     paths: inUse))
+        await h.scheduler.tick(now: now)
+        XCTAssertEqual(h.cleaner.cleanedKinds, [.directory(path: "~/Library/Developer/Xcode/DerivedData")])
+        XCTAssertEqual(h.cleaner.sparedPaths, [inUse])
+        XCTAssertEqual(h.settings.lastLowDiskClean, now)
+    }
+
+    func testRetriesNextTickWhenBuildsCantBeRead() async {
+        let h = makeHarness(available: 50, builds: FakeBuildDetector(paths: nil))
         await h.scheduler.tick(now: now)
         XCTAssertTrue(h.cleaner.cleanedKinds.isEmpty)
         XCTAssertNil(h.settings.lastLowDiskClean)

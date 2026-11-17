@@ -248,4 +248,41 @@ final class CleanerTests: XCTestCase {
             "scan must prune the Library subtree"
         )
     }
+
+    func testRemoveDirectoryContentsSparesEntriesInUse() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: dir) }
+        let busy = dir.appendingPathComponent("wt-busy/DerivedData")
+        let idle = dir.appendingPathComponent("wt-idle/DerivedData")
+        try fm.createDirectory(at: busy, withIntermediateDirectories: true)
+        try fm.createDirectory(at: idle, withIntermediateDirectories: true)
+
+        try Cleaner().removeDirectoryContents(dir.path, sparing: [PathsInUse.normalize(busy.path)])
+
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: dir.path), ["wt-busy"])
+        XCTAssertTrue(fm.fileExists(atPath: busy.path))
+    }
+
+    func testCleanBuildFoldersSparesOneInUse() async throws {
+        let fm = FileManager.default
+        let base = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: base) }
+        let busy = base.appendingPathComponent("Building/.build")
+        let idle = base.appendingPathComponent("Idle/.build")
+        try fm.createDirectory(at: busy, withIntermediateDirectories: true)
+        try fm.createDirectory(at: idle, withIntermediateDirectories: true)
+
+        let found = Data("\(busy.path)\u{0}\(idle.path)\u{0}".utf8)
+        let runner = FakeCommandRunner(responses: [
+            .init(status: 0, stdout: found, stderr: Data()),
+            .init(status: 0, stdout: Data("\(busy.path)\u{0}".utf8), stderr: Data()),
+        ])
+        let inUse: Set<String> = [PathsInUse.normalize(busy.path)]
+        let result = await Cleaner(runner: runner).clean(.buildFolders(root: base.path), sparing: inUse)
+
+        if case .failure(let error) = result { XCTFail("expected success, got \(error)") }
+        XCTAssertTrue(fm.fileExists(atPath: busy.path), ".build in use must stay")
+        XCTAssertFalse(fm.fileExists(atPath: idle.path))
+    }
 }

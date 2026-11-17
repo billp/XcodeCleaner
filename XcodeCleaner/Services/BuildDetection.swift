@@ -32,6 +32,9 @@ struct ActiveBuild: Equatable, Sendable {
     /// The git branch checked out where the build runs (or the folder name when
     /// it isn't a git checkout).
     var branch: String?
+    /// Absolute folders the build reads or writes, from its command line
+    /// (`-derivedDataPath`, `-testProductsPath`, a package's `.build`…).
+    var paths: [String] = []
 }
 
 /// Pure process-tree analysis: turns a `ps` snapshot into a list of builds.
@@ -52,7 +55,13 @@ enum BuildDetection {
     static let queryFlags: Set<String> = [
         "-showBuildSettings", "-list", "-version", "-showsdks", "-showdestinations",
         "-showTestPlans", "-showComponent", "-help", "-usage", "-license",
-        "-checkFirstLaunchStatus",
+        "-checkFirstLaunchStatus", "-runFirstLaunch", "-find", "-find-executable", "-find-library",
+    ]
+
+    /// `xcodebuild` flags whose value is a path the build reads or writes.
+    static let xcodebuildPathFlags: [String] = [
+        "-workspace", "-project", "-derivedDataPath", "-resultBundlePath", "-testProductsPath",
+        "-archivePath", "-xctestrun", "-clonedSourcePackagesDirPath", "-packageCachePath",
     ]
 
     /// Parses `ps -o pid=,ppid=,comm=` output. Paths may contain spaces, so
@@ -80,8 +89,19 @@ enum BuildDetection {
     /// `-workspace`/`-project` argument (which may be relative or absent).
     typealias BranchResolver = (_ pid: Int32, _ containerPath: String?) -> String?
 
+    /// - Parameter ownPID: this app's pid. Processes it launched (scans run
+    ///   `xcrun simctl`, whose shim calls `xcodebuild`) are never builds.
+    /// - Parameter workingDirectories: per-pid current directory, used to
+    ///   resolve relative paths on a build's command line.
     static func detect(processes: [RunningProcess], arguments: [Int32: [String]] = [:],
+                       workingDirectories: [Int32: String] = [:],
+                       ignoringDescendantsOf ownPID: Int32? = nil,
                        branch resolveBranch: BranchResolver = { _, _ in nil }) -> [ActiveBuild] {
+        let fullTree = ProcessTree(processes)
+        let processes = processes.filter { process in
+            guard let ownPID else { return true }
+            return process.pid != ownPID && !fullTree.ancestors(of: process).contains { $0.pid == ownPID }
+        }
         let tree = ProcessTree(processes)
         var builds: [ActiveBuild] = []
 
@@ -92,13 +112,16 @@ enum BuildDetection {
             let args = arguments[process.pid] ?? []
             builds.append(ActiveBuild(pid: process.pid, kind: .xcodebuild, source: source(of: ancestors),
                                       detail: xcodebuildDetail(args),
-                                      branch: resolveBranch(process.pid, xcodebuildContainer(args))))
+                                      branch: resolveBranch(process.pid, xcodebuildContainer(args)),
+                                      paths: xcodebuildPaths(args, workingDirectory: workingDirectories[process.pid])))
         }
 
         for process in processes where swiftPMNames.contains(process.name) {
             let ancestors = tree.ancestors(of: process)
             guard !ancestors.contains(where: { swiftPMNames.contains($0.name) }) else { continue }
-            builds.append(ActiveBuild(pid: process.pid, kind: .swiftPM, source: source(of: ancestors)))
+            builds.append(ActiveBuild(pid: process.pid, kind: .swiftPM, source: source(of: ancestors),
+                                      paths: swiftPMPaths(arguments[process.pid] ?? [],
+                                                          workingDirectory: workingDirectories[process.pid])))
         }
 
         for process in processes where buildServiceNames.contains(process.name) {
@@ -133,6 +156,64 @@ enum BuildDetection {
         guard let scheme else { return nil }
         let action = args.last(where: xcodebuildActions.contains) ?? "build"
         return "\(scheme) · \(action)"
+    }
+
+    /// The values of `xcodebuildPathFlags`, made absolute against the build's
+    /// working directory (relative ones are dropped when it's unknown).
+    static func xcodebuildPaths(_ args: [String], workingDirectory: String?) -> [String] {
+        xcodebuildPathFlags.compactMap { value(after: $0, in: args) }
+            .compactMap { absolute($0, in: workingDirectory) }
+    }
+
+    /// Where a `swift build/test/run` puts its products: `--scratch-path`
+    /// (or the older `--build-path`), else `.build` in `--package-path` or the
+    /// working directory.
+    static func swiftPMPaths(_ args: [String], workingDirectory: String?) -> [String] {
+        if let scratch = value(after: "--scratch-path", in: args) ?? value(after: "--build-path", in: args) {
+            return absolute(scratch, in: workingDirectory).map { [$0] } ?? []
+        }
+        let package = value(after: "--package-path", in: args) ?? "."
+        return absolute(package, in: workingDirectory)
+            .map { [(($0 as NSString).appendingPathComponent(".build") as NSString).standardizingPath] } ?? []
+    }
+
+    /// Whether `args` has a path a working directory is needed to resolve.
+    static func needsWorkingDirectory(_ process: RunningProcess, args: [String]) -> Bool {
+        if process.name == "xcodebuild" {
+            return xcodebuildContainer(args) == nil
+                || xcodebuildPathFlags.compactMap({ value(after: $0, in: args) }).contains { !$0.hasPrefix("/") }
+        }
+        let explicit = value(after: "--scratch-path", in: args) ?? value(after: "--build-path", in: args)
+            ?? value(after: "--package-path", in: args)
+        return !(explicit?.hasPrefix("/") ?? false)
+    }
+
+    private static func absolute(_ path: String, in directory: String?) -> String? {
+        if path.hasPrefix("/") { return (path as NSString).standardizingPath }
+        guard let directory else { return nil }
+        return ((directory as NSString).appendingPathComponent(path) as NSString).standardizingPath
+    }
+
+    /// `roots` plus every process below them.
+    static func processTreePIDs(of roots: [Int32], in processes: [RunningProcess]) -> [Int32] {
+        var children: [Int32: [Int32]] = [:]
+        for process in processes { children[process.ppid, default: []].append(process.pid) }
+        var result: [Int32] = []
+        var seen: Set<Int32> = []
+        var stack = roots
+        while let pid = stack.popLast() {
+            guard seen.insert(pid).inserted else { continue }
+            result.append(pid)
+            stack.append(contentsOf: children[pid] ?? [])
+        }
+        return result
+    }
+
+    /// File paths (`n/…` lines) from `lsof -Fn` output.
+    static func parseOpenFiles(_ output: String) -> [String] {
+        output.split(separator: "\n").compactMap { line in
+            line.hasPrefix("n/") ? String(line.dropFirst()) : nil
+        }
     }
 
     /// The `-workspace` or `-project` path, as passed (may be relative).
@@ -218,6 +299,15 @@ private struct ProcessTree {
 
 protocol BuildDetecting: Sendable {
     func activeBuilds() async throws -> [ActiveBuild]
+    /// Normalized paths (see `PathsInUse`) that running builds are using; a
+    /// clean leaves the entries holding them alone.
+    func pathsInUse() async throws -> Set<String>
+}
+
+extension BuildDetecting {
+    func pathsInUse() async throws -> Set<String> {
+        Set(try await activeBuilds().flatMap(\.paths).map(PathsInUse.normalize))
+    }
 }
 
 struct BuildDetector: BuildDetecting {
@@ -228,26 +318,56 @@ struct BuildDetector: BuildDetecting {
     }
 
     func activeBuilds() async throws -> [ActiveBuild] {
+        try await snapshot().builds
+    }
+
+    /// The folders on each build's command line plus every file its process
+    /// tree (build service, compilers, linkers…) has open right now. Only paths
+    /// under the home folder are kept — every cleanup target lives there.
+    func pathsInUse() async throws -> Set<String> {
+        let (processes, builds) = try await snapshot()
+        var paths = builds.flatMap(\.paths)
+        let pids = BuildDetection.processTreePIDs(of: builds.map(\.pid), in: processes)
+        if !pids.isEmpty {
+            // lsof exits non-zero when a pid has exited meanwhile; what it
+            // printed for the others is still valid.
+            let args = ["-n", "-P", "-w", "-Fn", "-p", pids.map(String.init).joined(separator: ",")]
+            if let output = try? await runner.run("/usr/sbin/lsof", args) {
+                paths += BuildDetection.parseOpenFiles(String(decoding: output.stdout, as: UTF8.self))
+            }
+        }
+        let home = PathsInUse.normalize(NSHomeDirectory()) + "/"
+        return Set(paths.map(PathsInUse.normalize).filter { $0.hasPrefix(home) })
+    }
+
+    private func snapshot() async throws -> (processes: [RunningProcess], builds: [ActiveBuild]) {
         let (status, data, _) = try await runner.run("/bin/ps", ["-axww", "-o", "pid=,ppid=,comm="])
         guard status == 0 else { throw ProcessError.process("ps exited with \(status)") }
         let processes = BuildDetection.parseProcesses(String(decoding: data, as: UTF8.self))
 
-        // Fetch arguments only for xcodebuild, to skip read-only queries.
-        let pids: [String] = processes.filter { $0.name == "xcodebuild" }.map { String($0.pid) }
+        // Arguments only for xcodebuild (to skip read-only queries and read the
+        // folders it uses) and SwiftPM (to find its .build).
+        let candidates = processes.filter {
+            $0.name == "xcodebuild" || BuildDetection.swiftPMNames.contains($0.name)
+        }
         var arguments: [Int32: [String]] = [:]
-        if !pids.isEmpty {
-            let args = ["-ww", "-o", "pid=,args=", "-p", pids.joined(separator: ",")]
+        if !candidates.isEmpty {
+            let args = ["-ww", "-o", "pid=,args=", "-p", candidates.map { String($0.pid) }.joined(separator: ",")]
             if let output = try? await runner.run("/bin/ps", args) {
                 arguments = BuildDetection.parseArguments(String(decoding: output.stdout, as: UTF8.self))
             }
         }
-        // Relative or missing -workspace/-project: resolve against the build's
-        // working directory (looked up only in that case — lsof is slow-ish).
+        // Relative or missing paths: resolve against the build's working
+        // directory (looked up only in that case — lsof is slow-ish).
         var workingDirectories: [Int32: String] = [:]
-        for (pid, args) in arguments where !(BuildDetection.xcodebuildContainer(args)?.hasPrefix("/") ?? false) {
-            workingDirectories[pid] = await workingDirectory(of: pid)
+        for process in candidates {
+            guard let args = arguments[process.pid],
+                  BuildDetection.needsWorkingDirectory(process, args: args) else { continue }
+            workingDirectories[process.pid] = await workingDirectory(of: process.pid)
         }
-        return BuildDetection.detect(processes: processes, arguments: arguments) { pid, container in
+        let builds = BuildDetection.detect(processes: processes, arguments: arguments,
+                                           workingDirectories: workingDirectories,
+                                           ignoringDescendantsOf: ProcessInfo.processInfo.processIdentifier) { pid, container in
             let directory: String? = if let container, container.hasPrefix("/") {
                 container
             } else if let cwd = workingDirectories[pid] {
@@ -258,6 +378,7 @@ struct BuildDetector: BuildDetecting {
             guard let directory else { return nil }
             return GitBranch.name(containing: directory) ?? GitBranch.folderName(of: directory)
         }
+        return (processes, builds)
     }
 
     /// The process's current directory, via `lsof -a -p PID -d cwd -Fn`.

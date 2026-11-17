@@ -51,17 +51,21 @@ final class SchedulerViewModel {
     }
 
     /// When enabled and free space is below `LowDiskMath.threshold`, cleans the
-    /// selected targets (at most once per `LowDiskMath.cooldown`). If a build is
-    /// running it simply waits for a later tick rather than cleaning mid-build.
+    /// selected targets (at most once per `LowDiskMath.cooldown`). It doesn't
+    /// wait for builds to finish — with agents building all day there may never
+    /// be a quiet moment, and the disk filling up breaks those builds anyway.
+    /// Instead it leaves alone the folders running builds are using.
     func checkLowDiskSpace(now: Date) async {
         guard settings.lowDiskCleanEnabled, !vm.isScheduledCleaning else { return }
         guard let space = vm.refreshDiskSpace(),
               LowDiskMath.shouldClean(space: space, lastRun: settings.lastLowDiskClean, now: now)
         else { return }
-        guard await isBuildRunning() == false else { return }
+        // Can't tell what builds are using → try again next tick.
+        guard let inUse = try? await buildDetector.pathsInUse() else { return }
 
         settings.lastLowDiskClean = now
-        let result = await vm.runScheduledClean(named: settings.enabledTargetNames, trigger: .lowDisk)
+        let result = await vm.runScheduledClean(named: settings.enabledTargetNames, trigger: .lowDisk,
+                                                sparing: inUse)
         if result.count > 0 {
             await notifier.notifyCleanFinished(targetCount: result.count, reclaimedBytes: result.reclaimed,
                                                trigger: .lowDisk)

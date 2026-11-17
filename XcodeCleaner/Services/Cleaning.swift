@@ -2,6 +2,16 @@ import Foundation
 
 protocol Cleaning: Sendable {
     func clean(_ kind: CleanupKind) async -> Result<Void, Error>
+    /// Same, but leaves alone every entry a running build is using — see
+    /// `PathsInUse.isInUse`. Simulator targets don't hold build output and
+    /// ignore `inUse`.
+    func clean(_ kind: CleanupKind, sparing inUse: Set<String>) async -> Result<Void, Error>
+}
+
+extension Cleaning {
+    func clean(_ kind: CleanupKind, sparing inUse: Set<String>) async -> Result<Void, Error> {
+        await clean(kind)
+    }
 }
 
 struct Cleaner: Cleaning {
@@ -20,12 +30,16 @@ struct Cleaner: Cleaning {
     }
 
     func clean(_ kind: CleanupKind) async -> Result<Void, Error> {
+        await clean(kind, sparing: [])
+    }
+
+    func clean(_ kind: CleanupKind, sparing inUse: Set<String>) async -> Result<Void, Error> {
         do {
             switch kind {
             case .directory(let path):
-                try removeDirectoryContents((path as NSString).expandingTildeInPath)
+                try removeDirectoryContents((path as NSString).expandingTildeInPath, sparing: inUse)
             case .buildFolders(let root):
-                try await removeBuildFolders((root as NSString).expandingTildeInPath)
+                try await removeBuildFolders((root as NSString).expandingTildeInPath, sparing: inUse)
             case .unavailableSimulators:
                 try await runSimctl(["simctl", "delete", "unavailable"])
             case .unusedRuntimes(let days):
@@ -110,10 +124,14 @@ struct Cleaner: Cleaning {
     /// retried, and an entry that has already vanished counts as done. The
     /// authoritative check is a re-scan afterwards — an error surfaces only if a
     /// `.build` genuinely remains.
-    func removeBuildFolders(_ root: String) async throws {
+    ///
+    /// A `.build` that a running `swift build` (or anything else) is using is
+    /// left in place.
+    func removeBuildFolders(_ root: String, sparing inUse: Set<String> = []) async throws {
         let fm = FileManager.default
         var lastError: Error?
-        for path in try await BuildFolders.paths(root: root, runner: runner) {
+        let isSpared = { (path: String) in PathsInUse.isInUse(PathsInUse.normalize(path), paths: inUse) }
+        for path in try await BuildFolders.paths(root: root, runner: runner) where !isSpared(path) {
             for _ in 0..<3 {
                 guard fm.fileExists(atPath: path) else { break }  // gone (lost a race) → done
                 do {
@@ -124,7 +142,7 @@ struct Cleaner: Cleaning {
                 }
             }
         }
-        let remaining = try await BuildFolders.paths(root: root, runner: runner)
+        let remaining = try await BuildFolders.paths(root: root, runner: runner).filter { !isSpared($0) }
         if !remaining.isEmpty, let lastError {
             throw lastError
         }
@@ -138,11 +156,18 @@ struct Cleaner: Cleaning {
     /// in that case where `rm -rf` would not. We treat an already-gone entry as
     /// success and retry transient failures, surfacing an error only for entries
     /// that genuinely remain after the sweep.
-    func removeDirectoryContents(_ path: String) throws {
+    ///
+    /// Entries a running build is using (its DerivedData or XcodeBuildMCP
+    /// workspace folder…) are left in place.
+    func removeDirectoryContents(_ path: String, sparing inUse: Set<String> = []) throws {
         let fm = FileManager.default
         guard fm.fileExists(atPath: path) else { return }
         var lastError: Error?
-        for entry in try fm.contentsOfDirectory(atPath: path) {
+        let root = PathsInUse.normalize(path)
+        let isSpared = { (entry: String) in
+            PathsInUse.isInUse((root as NSString).appendingPathComponent(entry), paths: inUse)
+        }
+        for entry in try fm.contentsOfDirectory(atPath: path) where !isSpared(entry) {
             let full = (path as NSString).appendingPathComponent(entry)
             for _ in 0..<3 {
                 guard fm.fileExists(atPath: full) else { break }  // gone (lost a race) → done
@@ -155,8 +180,9 @@ struct Cleaner: Cleaning {
             }
         }
         // The directory's final state is the source of truth: if it's empty the
-        // clean succeeded regardless of per-entry hiccups along the way.
-        let remaining = (try? fm.contentsOfDirectory(atPath: path)) ?? []
+        // clean succeeded regardless of per-entry hiccups along the way
+        // (entries spared for a running build don't count).
+        let remaining = ((try? fm.contentsOfDirectory(atPath: path)) ?? []).filter { !isSpared($0) }
         if !remaining.isEmpty, let lastError {
             throw lastError
         }

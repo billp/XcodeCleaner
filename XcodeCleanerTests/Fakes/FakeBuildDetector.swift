@@ -8,9 +8,16 @@ final class FakeBuildDetector: BuildDetecting, @unchecked Sendable {
     private let lock = OSAllocatedUnfairLock()
     private var _responses: [[ActiveBuild]]
     private var _callCount = 0
+    private let paths: Set<String>?
 
-    init(responses: [[ActiveBuild]]) { _responses = responses }
-    convenience init(builds: [ActiveBuild] = []) { self.init(responses: [builds]) }
+    /// `paths` is what `pathsInUse()` returns; `nil` makes it throw.
+    init(responses: [[ActiveBuild]], paths: Set<String>? = []) {
+        _responses = responses
+        self.paths = paths
+    }
+    convenience init(builds: [ActiveBuild] = [], paths: Set<String>? = []) {
+        self.init(responses: [builds], paths: paths)
+    }
 
     static var idle: FakeBuildDetector { FakeBuildDetector() }
     static var busy: FakeBuildDetector { FakeBuildDetector(builds: [sampleBuild]) }
@@ -23,5 +30,10 @@ final class FakeBuildDetector: BuildDetecting, @unchecked Sendable {
             _callCount += 1
             return _responses.count > 1 ? _responses.removeFirst() : (_responses.first ?? [])
         }
+    }
+
+    func pathsInUse() async throws -> Set<String> {
+        guard let paths else { throw ProcessError.process("ps failed") }
+        return paths
     }
 }

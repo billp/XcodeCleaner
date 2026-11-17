@@ -57,6 +57,67 @@ final class BuildDetectionTests: XCTestCase {
         XCTAssertTrue(builds.isEmpty)
     }
 
+    /// `xcrun simctl` runs Xcode's simctl shim, which itself calls
+    /// `xcodebuild -sdk … -find …` and `xcodebuild -runFirstLaunch`.
+    func testSimctlShimLookupsAreNotBuilds() {
+        let processes = [p(10, 1, "/bin/zsh"), p(11, 10, xcodebuild), p(12, 10, xcodebuild)]
+        let builds = BuildDetection.detect(processes: processes, arguments: [
+            11: [xcodebuild, "-sdk", "/Applications/Xcode.app/.../MacOSX.sdk", "-find", "simctl"],
+            12: [xcodebuild, "-runFirstLaunch"],
+        ])
+        XCTAssertTrue(builds.isEmpty)
+    }
+
+    /// Anything Xcode Cleaner launches itself (scans via xcrun/simctl…) is
+    /// never a build, whatever its arguments.
+    func testProcessesLaunchedByThisAppAreNotBuilds() {
+        let app = "/Applications/XcodeCleaner.app/Contents/MacOS/XcodeCleaner"
+        let processes = [
+            p(1095, 1, app),
+            p(2000, 1095, "/usr/bin/xcrun"),
+            p(2001, 2000, xcodebuild),
+            p(2002, 2001, "/usr/bin/clang"),
+        ]
+        XCTAssertTrue(BuildDetection.detect(processes: processes, ignoringDescendantsOf: 1095).isEmpty)
+    }
+
+    func testXcodebuildPathsAreMadeAbsolute() {
+        let args = [xcodebuild, "-workspace", "App.xcworkspace", "-scheme", "App",
+                    "-derivedDataPath", "/Users/me/ws/wt-1/DerivedData", "-resultBundlePath", "../out.xcresult", "test"]
+        XCTAssertEqual(BuildDetection.xcodebuildPaths(args, workingDirectory: "/Users/me/src"), [
+            "/Users/me/src/App.xcworkspace", "/Users/me/ws/wt-1/DerivedData", "/Users/me/out.xcresult",
+        ])
+        XCTAssertEqual(BuildDetection.xcodebuildPaths(args, workingDirectory: nil), ["/Users/me/ws/wt-1/DerivedData"])
+    }
+
+    func testSwiftPMPathsPointAtItsBuildFolder() {
+        XCTAssertEqual(BuildDetection.swiftPMPaths([], workingDirectory: "/Users/me/Pkg"), ["/Users/me/Pkg/.build"])
+        XCTAssertEqual(BuildDetection.swiftPMPaths(["--package-path", "/p/Q"], workingDirectory: nil), ["/p/Q/.build"])
+        XCTAssertEqual(BuildDetection.swiftPMPaths(["--scratch-path", "/tmp/s"], workingDirectory: nil), ["/tmp/s"])
+        XCTAssertEqual(BuildDetection.swiftPMPaths([], workingDirectory: nil), [])
+    }
+
+    func testDetectionAttachesPaths() {
+        let processes = [p(10, 1, "/bin/zsh"), p(11, 10, xcodebuild), p(12, 10, "/usr/bin/swift-build")]
+        let builds = BuildDetection.detect(
+            processes: processes,
+            arguments: [11: [xcodebuild, "-testProductsPath", "/Users/me/ws/wt-1/tp.xctestproducts"],
+                        12: ["/usr/bin/swift-build"]],
+            workingDirectories: [12: "/Users/me/Pkg"])
+        XCTAssertEqual(builds.map(\.paths), [["/Users/me/ws/wt-1/tp.xctestproducts"], ["/Users/me/Pkg/.build"]])
+    }
+
+    func testProcessTreePIDsIncludesEveryDescendant() {
+        let processes = [p(11, 1, xcodebuild), p(12, 11, buildService), p(13, 12, "/usr/bin/clang"),
+                         p(20, 1, "/bin/zsh")]
+        XCTAssertEqual(Set(BuildDetection.processTreePIDs(of: [11], in: processes)), [11, 12, 13])
+    }
+
+    func testParsesOpenFiles() {
+        let output = "p11\nfcwd\nn/Users/me/src\nf3\nn/Users/me/dd/build.db\nf4\nnpipe\n"
+        XCTAssertEqual(BuildDetection.parseOpenFiles(output), ["/Users/me/src", "/Users/me/dd/build.db"])
+    }
+
     func testXcodebuildFromTerminalIsAttributedToTerminal() {
         let processes = [
             p(5, 1, "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal"),
